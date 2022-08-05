@@ -2,6 +2,13 @@
 #+AUTHOR: Dowland Aiello
 #+DATE: 07/30/2022
 
+* Spec
+
+This document contains notes from our tokenomics research, and thoughts we had while implementing the tokenomics simulation.
+** Taxonomy
+
+Visualized below are the different actors in Vision, and the pre-requisites to obtaining each role on Vision.
+
 | .          | Election | Storage  | Truth  | Storage  | Outcome  | Idea     | Idea Part. | Storage | Quad. Vot. | Jury   |
 |            | Enforcer | Provider | Finder | Enforcer | Benefic. | Investor |            | User    | User       | Member |
 |------------+----------+----------+--------+----------+----------+----------+------------+---------+------------+--------|

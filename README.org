@@ -1,0 +1,7 @@
+#+TITLE: README
+#+AUTHOR: Dowland Aiello, Lawrence Qupty
+#+DATE: 08/04/2022
+
+* Vision Tokenomics
+
+This repository implements a simulation of the Vision tokenomics, and houses notes about Vision's tokenomics properties, available [[file:spec.org::*Spec][here]].
