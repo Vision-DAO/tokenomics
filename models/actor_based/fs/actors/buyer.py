@@ -1,6 +1,5 @@
 """Implements methods for creating, and managing the buyer actor."""
 
-from . contract import Contract
 import random
 from dataclasses import dataclass
 
@@ -9,7 +8,6 @@ class Buyer:
     """Represents a Vision user that wants to pay for storage."""
 
     balance: float
-    contracts: list[Contract]
 
     # How much of a premium this user is willing to pay for the ability to store
     # files, compared to the going market rate.
@@ -20,7 +18,7 @@ class Buyer:
 
 
 def update_funded_balances(params, substep, state_history, prev_state, policy_input):
-    for grant in policy_input.grants:
+    for grant in policy_input["grants"]:
         grant["user"].balance += grant["value"]
 
     return ("users", prev_state["users"])
@@ -34,13 +32,16 @@ def generate_users(params, substep, state_history, prev_state, policy_input):
     return ("users", [*prev_state["users"], Buyer(0, [], substep)])
 
 
-def generate_orders(params, substep, state_history, prev_state, policy_input):
-    # Users get ideas every 10 steps (approximately once every week)
-    orders = [Contract(None, buyer, -1, prev_state["mkt_sprice"])
-              for buyer in prev_state["users"]
-              if prev_state["timestep"] == buyer.last_contract]
+def register_orders(params, substep, state_history, prev_state, policy_input):
+    return ("orders", [*prev_state["orders"],
+                       *[o for o in policy_input.values() if o is not None]])
 
-    return ("orders", [*prev_state["orders"], *orders])
+
+def update_user_balances(params, substep, state_history, prev_state, policy_input):
+    for o in policy_input["filled"]:
+        o.buyer.balance -= o.price * o.size
+
+    return ("users", prev_state["users"])
 
 
 def negotiate_orders(params, substep, state_history, prev_state):
@@ -80,10 +81,10 @@ def negotiate_orders(params, substep, state_history, prev_state):
                 **{order: order.price for order in taken},
                 **signal["filled"]
             },
-            "spent": {
+            "space_spent": {
                 prov: used,
-                **signal["spent"],
-            }
+                **signal["space_spent"],
+            },
         }
 
     return signal
@@ -96,4 +97,4 @@ def update_last_contract(params, substep, state_history, prev_state, policy_inpu
         if prev_state["timestep"] - u.last_contract == 10:
             u.last_contract = prev_state["timestep"]
 
-    return users
+    return ("users", users)

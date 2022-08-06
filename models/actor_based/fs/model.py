@@ -1,8 +1,15 @@
-from radcad import Model
-from . actors import provider.Provider, provider.generate_providers, buyer.generate_orders, buyer.update_last_contract, buyer.generate_users, provider.fund_users
+from radcad import Model, Simulation
+from actors.buyer import update_last_contract, \
+    generate_users, register_orders, update_funded_balances, \
+    negotiate_orders, update_user_balances
+from actors.contract import update_treasury_balance, \
+    remove_fulfilled_orders, add_fulfilled_orders, \
+    generate_orders
+from actors.provider import Provider, fund_users, update_provider_capacities
+import pandas as pd
 
 # Start the system off with just one user, who is providing storage to no one
-treasury = Provider(100, 102400, 0, 0, {})
+treasury = Provider(100, 102400, 0, 0)
 initial_state = {
     # Vision DAO provides 100 GiB of storage, at zero fee
     "treasury": treasury,
@@ -46,9 +53,12 @@ state_update_blocks = [
     },
     # Create file storage orders for users with new ideas
     {
-        "policies": {},
+        "policies": {
+            "generate_orders": generate_orders,
+        },
         "variables": {
-            "orders": generate_orders,
+            "orders": register_orders,
+            "users": update_user_balances,
         },
     },
     # Allow users to adjust their orders based on how much they like Visoin, and
@@ -58,12 +68,20 @@ state_update_blocks = [
             "negotiate_orders": negotiate_orders,
         },
         "variables": {
+            "orders": remove_fulfilled_orders,
+            "providers": update_provider_capacities,
+            "active": add_fulfilled_orders,
         },
     },
 ]
 
 def runner():
     model = Model(initial_state=initial_state, state_update_blocks=state_update_blocks, params={})
+    simulation = Simulation(model=model, timesteps=10, runs=1)
+    result = simulation.run()
+
+    df = pd.DataFrame(result)
+    print(df)
 
 if __name__ == "__main__":
     runner()

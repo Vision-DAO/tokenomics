@@ -1,7 +1,5 @@
-from . contract import Contract
-from . buyer import Buyer
 from dataclasses import dataclass
-from typing import Dict
+from random import random
 
 
 @dataclass
@@ -17,7 +15,6 @@ class Provider:
 
     # The minimum fee the provider accepts for bids
     min_fee: float
-    stakes: Dict[Buyer, Contract]
 
 
 def fund_users(params, substep, state_history, prev_state):
@@ -37,3 +34,16 @@ def fund_users(params, substep, state_history, prev_state):
             total_doled += grant
 
     return {"drain_treasury": total_doled, "grants": grants}
+
+
+def update_provider_capacities(params, substep, state_history,
+                               prev_state, policy_input):
+    providers = prev_state["providers"]
+
+    for prov in providers:
+        if prov not in policy_input["space_spent"]:
+            continue
+
+        prov.used += policy_input["space_spent"]
+
+    return ("providers", providers)
