@@ -45,14 +45,15 @@ def fund_users(params, substep, state_history, prev_state):
     return {"drain_treasury": total_doled, "grants": grants}
 
 
-def update_provider_capacities(params, substep, state_history,
-                               prev_state, policy_input):
+def update_provider_capacities(
+    params, substep, state_history, prev_state, policy_input
+):
     providers = prev_state["providers"]
 
     for prov in providers:
         if prov not in policy_input["spent"]:
             continue
 
-        prov.used += policy_input["spent"]
+        prov.used += policy_input["spent"][prov]
 
     return ("providers", providers)

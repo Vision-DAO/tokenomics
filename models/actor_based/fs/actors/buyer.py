@@ -27,8 +27,7 @@ class Buyer:
         return self.id == o.id
 
 
-def update_funded_balances(params, substep, state_history,
-                           prev_state, policy_input):
+def update_funded_balances(params, substep, state_history, prev_state, policy_input):
     for grant in policy_input["grants"]:
         grant["user"].balance += grant["value"]
 
@@ -45,8 +44,10 @@ def generate_users(params, substep, state_history, prev_state, policy_input):
 
 
 def register_orders(params, substep, state_history, prev_state, policy_input):
-    return ("orders", [*prev_state["orders"],
-                       *[o for o in policy_input.values() if o is not None]])
+    return (
+        "orders",
+        [*prev_state["orders"], *[o for o in policy_input.values() if o is not None]],
+    )
 
 
 def update_user_balances(params, substep, state_history, prev_state, policy_input):
@@ -90,10 +91,7 @@ def negotiate_orders(params, substep, state_history, prev_state):
         # Use the determined price to fill all of the orders, and remove the
         # specified units from the provider
         signal = {
-            "filled": {
-                **{order: order.price for order in taken},
-                **signal["filled"]
-            },
+            "filled": {**{order: prov for order in taken}, **signal["filled"]},
             "spent": {
                 prov: used,
                 **signal["spent"],
