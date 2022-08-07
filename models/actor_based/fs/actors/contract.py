@@ -17,6 +17,14 @@ class Contract:
     epoch_created_at: int
     price: float
 
+    id: int
+
+    def __hash__(self):
+        return self.id
+
+    def __eq__(self, o):
+        return self.id == o.id
+
 
 def update_treasury_balance(params, substep, state_history, prev_state, policy_input):
     prev_state["treasury"].balance -= policy_input["drain_treasury"]
@@ -35,9 +43,16 @@ def add_fulfilled_orders(params, substep, state_history, prev_state, policy_inpu
     return (
         "active",
         [
-            Contract()
-            for (order, prov) in prev_state["orders"].items()
-            if o in policy_input["filled"]
+            Contract(
+                prov,
+                order.buyer,
+                order.size,
+                prev_state["timestep"] + 1,
+                order.epoch_created_at,
+                order.price,
+                len(prev_state["active"]),
+            )
+            for (order, prov) in policy_input["filled"]
         ],
     )
 
@@ -58,7 +73,9 @@ def generate_orders(params, substep, state_history, prev_state):
                 u,
                 size,
                 -1,
+                prev_state["timestep"],
                 min(prev_state["mkt_sprice"] * size, u.balance) / size,
+                len(prev_state["orders"]),
             )
         )
         for (u, size) in map(

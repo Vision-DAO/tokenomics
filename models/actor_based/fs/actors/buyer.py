@@ -64,6 +64,7 @@ def negotiate_orders(params, substep, state_history, prev_state):
     # of them in the round, and then re-run next round
     order_options = list(range(len(prev_state["orders"])))
     random.shuffle(order_options)
+    order_options = [prev_state["orders"][i] for i in order_options]
 
     # The units of capacity the providers spent, the list of orders that were
     # filled, and the prices they were filled at
