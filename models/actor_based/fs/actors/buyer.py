@@ -3,6 +3,7 @@
 import random
 from dataclasses import dataclass
 
+
 @dataclass
 class Buyer:
     """Represents a Vision user that wants to pay for storage."""
@@ -16,6 +17,15 @@ class Buyer:
     # The time at which the user last had an idea, and got a contract for it
     last_contract: int
 
+    # buyer id for hashing purpouses
+    id: int
+
+    def __hash__(self):
+        return self.id
+
+    def __eq__(self, o):
+        return self.id == o.id
+
 
 def update_funded_balances(params, substep, state_history, prev_state, policy_input):
     for grant in policy_input["grants"]:
@@ -26,20 +36,24 @@ def update_funded_balances(params, substep, state_history, prev_state, policy_in
 
 def generate_users(params, substep, state_history, prev_state, policy_input):
     # Add a new user every 3 weeks
+    prev_users = prev_state["users"]
     if substep % 30 != 0:
-        return ("users", prev_state["users"])
+        return ("users", prev_users)
 
-    return ("users", [*prev_state["users"], Buyer(0, [], substep)])
+    return ("users", [*prev_users, Buyer(0, [], substep, len(prev_users))])
 
 
 def register_orders(params, substep, state_history, prev_state, policy_input):
-    return ("orders", [*prev_state["orders"],
-                       *[o for o in policy_input.values() if o is not None]])
+    return (
+        "orders",
+        [*prev_state["orders"], *[o for o in policy_input.values() if o is not None]],
+    )
 
 
 def update_user_balances(params, substep, state_history, prev_state, policy_input):
-    for o in policy_input["filled"]:
-        o.buyer.balance -= o.price * o.size
+    if "filled" in policy_input:
+        for o in policy_input["filled"]:
+            o.buyer.balance -= o.price * o.size
 
     return ("users", prev_state["users"])
 
@@ -77,13 +91,10 @@ def negotiate_orders(params, substep, state_history, prev_state):
         # Use the determined price to fill all of the orders, and remove the
         # specified units from the provider
         signal = {
-            "filled": {
-                **{order: order.price for order in taken},
-                **signal["filled"]
-            },
-            "space_spent": {
+            "filled": {**{order: prov for order in taken}, **signal["filled"]},
+            "spent": {
                 prov: used,
-                **signal["space_spent"],
+                **signal["spent"],
             },
         }
 

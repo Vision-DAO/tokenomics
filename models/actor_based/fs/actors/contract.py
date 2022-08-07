@@ -1,7 +1,7 @@
 """Implements methods for creating, and interacting with contracts."""
 
-from . provider import Provider
-from . buyer import Buyer
+from .provider import Provider
+from .buyer import Buyer
 from numpy.random import beta
 from dataclasses import dataclass
 
@@ -25,13 +25,21 @@ def update_treasury_balance(params, substep, state_history, prev_state, policy_i
 
 
 def remove_fulfilled_orders(params, substep, state_history, prev_state, policy_input):
-    return ("orders", [o for o in prev_state["orders"]
-                       if o not in policy_input["filled"]])
+    return (
+        "orders",
+        [o for o in prev_state["orders"] if o not in policy_input["filled"]],
+    )
 
 
 def add_fulfilled_orders(params, substep, state_history, prev_state, policy_input):
-    return ("active", [o for o in prev_state["orders"]
-                       if o in policy_input["filled"]])
+    return (
+        "active",
+        [
+            Contract()
+            for (order, prov) in prev_state["orders"].items()
+            if o in policy_input["filled"]
+        ],
+    )
 
 
 def generate_orders(params, substep, state_history, prev_state):
@@ -41,11 +49,20 @@ def generate_orders(params, substep, state_history, prev_state):
 
     # Choose the closest rate to the going market rate that the user can pay
     # (if their balance is not enough to cover it, just use that)
-    return {u: (None
-                if u.last_contract != prev_state["timestep"]
-                else Contract(None, u, size, -1,
-                              min(prev_state["mkt_sprice"] * size,
-                                  u.balance) / size))
-            for (u, size) in map(lambda u: (u[0], u[1] * 100),
-                                 zip(prev_state["users"],
-                                     beta(2, 20, len(prev_state["users"]))))}
+    return {
+        u: (
+            None
+            if u.last_contract != prev_state["timestep"]
+            else Contract(
+                None,
+                u,
+                size,
+                -1,
+                min(prev_state["mkt_sprice"] * size, u.balance) / size,
+            )
+        )
+        for (u, size) in map(
+            lambda u: (u[0], u[1] * 100),
+            zip(prev_state["users"], beta(2, 20, len(prev_state["users"]))),
+        )
+    }

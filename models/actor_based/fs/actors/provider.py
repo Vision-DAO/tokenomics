@@ -16,6 +16,15 @@ class Provider:
     # The minimum fee the provider accepts for bids
     min_fee: float
 
+    # provider id for hashing purpouses
+    id: int
+
+    def __hash__(self):
+        return self.id
+
+    def __eq__(self, o):
+        return self.id == o.id
+
 
 def fund_users(params, substep, state_history, prev_state):
     # Only dole out 0.5% of the treasury, at most, to each unfunded user
@@ -36,14 +45,15 @@ def fund_users(params, substep, state_history, prev_state):
     return {"drain_treasury": total_doled, "grants": grants}
 
 
-def update_provider_capacities(params, substep, state_history,
-                               prev_state, policy_input):
+def update_provider_capacities(
+    params, substep, state_history, prev_state, policy_input
+):
     providers = prev_state["providers"]
 
     for prov in providers:
-        if prov not in policy_input["space_spent"]:
+        if prov not in policy_input["spent"]:
             continue
 
-        prov.used += policy_input["space_spent"]
+        prov.used += policy_input["spent"][prov]
 
     return ("providers", providers)
