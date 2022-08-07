@@ -9,7 +9,7 @@ from actors.provider import Provider, fund_users, update_provider_capacities
 import pandas as pd
 
 # Start the system off with just one user, who is providing storage to no one
-treasury = Provider(100, 102400, 0, 0)
+treasury = Provider(100, 102400, 0, 0, 0)
 initial_state = {
     # Vision DAO provides 100 GiB of storage, at zero fee
     "treasury": treasury,
@@ -61,8 +61,8 @@ state_update_blocks = [
             "users": update_user_balances,
         },
     },
-    # Allow users to adjust their orders based on how much they like Visoin, and
-    # how big their balances are
+    # Allow users to adjust their orders based on how much they like Vision,
+    # and how big their balances are
     {
         "policies": {
             "negotiate_orders": negotiate_orders,
@@ -75,13 +75,16 @@ state_update_blocks = [
     },
 ]
 
+
 def runner():
-    model = Model(initial_state=initial_state, state_update_blocks=state_update_blocks, params={})
+    model = Model(initial_state=initial_state,
+                  state_update_blocks=state_update_blocks, params={})
     simulation = Simulation(model=model, timesteps=10, runs=1)
     result = simulation.run()
 
     df = pd.DataFrame(result)
     print(df)
+
 
 if __name__ == "__main__":
     runner()
