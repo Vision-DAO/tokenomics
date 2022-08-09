@@ -27,20 +27,34 @@ class Provider:
 
 
 def fund_users(params, substep, state_history, prev_state):
-    # Only dole out 0.5% of the treasury, at most, to each unfunded user
+    # Only dole out 0.5% of the treasury, at most, per funding round
     grants = []
     total_doled = 0
+    grant_portion = params["grant_portion"] if "grant_portion" in params else 20
+    grants_available = min(
+        params["grant_max"] if "grant_max" in params else 5,
+        grant_portion - (100 - prev_state["treasury"].balance),
+    )
 
     for u in prev_state["users"]:
         if total_doled > prev_state["treasury"].balance:
             break
 
-        # This user is at risk of leaving our platform. Give them some money
-        if u.balance == 0:
-            grant = random() * 0.05 * prev_state["treasury"].balance
+        if total_doled >= grants_available:
+            break
 
-            grants.append({"user": u, "value": grant})
-            total_doled += grant
+        # This user is not at risk of leaving our platform
+        if u.balance != 0:
+            continue
+
+        grant = min(
+            random() * 0.05 * prev_state["treasury"].balance,
+            grants_available - total_doled,
+        )
+
+        grants.append({"user": u, "value": grant})
+        total_doled += grant
+        grants_available -= grant
 
     return {"drain_treasury": total_doled, "grants": grants}
 

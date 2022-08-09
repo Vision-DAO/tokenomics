@@ -1,0 +1,82 @@
+#+TITLE: File System Model Analysis
+#+DATE: 08/07/2022
+#+AUTHOR: Dowland Aiello
+
+n* File System Model Analysis
+
+Presented below are some analyses of the results of the initial run of the Vision file system simulation below:
+
+#+NAME: model_run
+#+BEGIN_SRC python
+  import pandas as pd
+  import json
+  from radcad import Model, Simulation
+  from model import treasury, initial_state, state_update_blocks
+
+  params = {
+      "grant_max": [5],
+      "grant_portion": [20],
+      "avg_contract_epochs": [[100, 20]],
+
+      # The number of timesteps it takes to make a new user
+      "new_user_interval": [20],
+
+      # How often the user has a new idea that they need storing
+      "new_idea_interval": [30],
+
+      # How long (on average) it takes users to want to resubmit their order
+      # at a higher price
+      "order_resubmit_interval": [5],
+
+      # How long it takes the user to leave after not getting an order filled
+      "order_timeout_interval": [15],
+  }
+
+  model = Model(
+      initial_state=initial_state, state_update_blocks=state_update_blocks, params=params
+  )
+  simulation = Simulation(model=model, timesteps=150, runs=1)
+  result = simulation.run()
+
+  df = pd.DataFrame(result)
+#+END_SRC
+
+#+RESULTS: model_run
+: None
+
+And display the results of the simulation as an org table:
+
+#+BEGIN_SRC python :results value raw :noweb yes
+<<model_run>>
+from tabulate import tabulate
+
+return tabulate(df.head(), headers=df.columns, tablefmt="orgtbl")
+#+END_SRC
+
+** Balance of the Treasury Over Time
+Using the previous run of the model, we can visualize the change in the balance of the treasury over time, versus the number of users, and the total balance accumulated among them.
+
+#+BEGIN_SRC python :results file :noweb yes :tangle yes
+<<model_run>>
+import matplotlib.pyplot as plt
+
+df["treasury"] = df["treasury"].apply(lambda x: x.balance)
+df["n_users"] = df["users"].str.len()
+df["n_providers"] = df["providers"].str.len()
+df["n_unfilled_orders"] = df["orders"].str.len()
+df["n_active_orders"] = df["active"].str.len()
+df["total_capacity"] = df["providers"].apply(lambda providers: sum(prov.capacity for prov in providers))
+df["used_capacity"] = df["providers"].apply(lambda providers: sum(prov.used for prov in providers))
+fname = "output/all.png"
+fig, axs = plt.subplots(2)
+
+#df[["treasury", "n_users", "mkt_sprice", "n_providers", "n_unfilled_orders", "n_active_orders"]].plot()
+df[["total_capacity", "used_capacity"]].plot(ax=axs[0])
+df[["n_active_orders", "n_unfilled_orders", "n_users"]].plot(ax=axs[1])
+plt.savefig(fname)
+
+return fname
+#+END_SRC
+
+#+RESULTS:
+[[file:output/all.png]]

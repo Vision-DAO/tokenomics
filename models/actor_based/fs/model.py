@@ -1,5 +1,7 @@
 from radcad import Model, Simulation
+import matplotlib.pyplot as plt
 from actors.buyer import (
+    Buyer,
     update_last_contract,
     generate_users,
     register_orders,
@@ -12,17 +14,19 @@ from actors.contract import (
     remove_fulfilled_orders,
     add_fulfilled_orders,
     generate_orders,
+    update_market_price,
+    orphan_expired_contracts,
 )
 from actors.provider import Provider, fund_users, update_provider_capacities
 import pandas as pd
 
 # Start the system off with just one user, who is providing storage to no one
-treasury = Provider(100, 102400, 0, 0, 0)
+treasury = Provider(100, 51200, 0, 0, 0)
 initial_state = {
     # Vision DAO provides 100 GiB of storage, at zero fee
     "treasury": treasury,
     "providers": [treasury],
-    "users": [],
+    "users": [Buyer(0, 0, 0, 0)],
     "orders": [],
     "active": [],
     # The prevailing storage price: average over the last few time intervals of
@@ -32,6 +36,13 @@ initial_state = {
 }
 
 state_update_blocks = [
+    # Clear out any contracts that are past their expiration date
+    {
+        "policies": {},
+        "variables": {
+            "active": orphan_expired_contracts,
+        },
+    },
     # Add 1 new user every 30 ticks
     {
         "policies": {},
@@ -78,21 +89,7 @@ state_update_blocks = [
             "orders": remove_fulfilled_orders,
             "providers": update_provider_capacities,
             "active": add_fulfilled_orders,
+            "mkt_sprice": update_market_price,
         },
     },
 ]
-
-
-def runner():
-    model = Model(
-        initial_state=initial_state, state_update_blocks=state_update_blocks, params={}
-    )
-    simulation = Simulation(model=model, timesteps=10, runs=1)
-    result = simulation.run()
-
-    df = pd.DataFrame(result)
-    print(df)
-
-
-if __name__ == "__main__":
-    runner()

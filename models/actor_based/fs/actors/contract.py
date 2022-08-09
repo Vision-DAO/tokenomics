@@ -2,8 +2,11 @@
 
 from .provider import Provider
 from .buyer import Buyer
-from numpy.random import beta
+from numpy.random import beta, normal
 from dataclasses import dataclass
+from functools import reduce
+from math import floor, ceil
+from itertools import count
 
 
 @dataclass
@@ -14,6 +17,7 @@ class Contract:
     buyer: Buyer
     size: float
     next_epoch: int
+    n_epochs: int
     epoch_created_at: int
     price: float
 
@@ -43,24 +47,43 @@ def add_fulfilled_orders(params, substep, state_history, prev_state, policy_inpu
     return (
         "active",
         [
-            Contract(
-                prov,
-                order.buyer,
-                order.size,
-                prev_state["timestep"] + 1,
-                order.epoch_created_at,
-                order.price,
-                len(prev_state["active"]),
-            )
-            for (order, prov) in policy_input["filled"]
+            *prev_state["active"],
+            *[
+                Contract(
+                    prov,
+                    order.buyer,
+                    order.size,
+                    order.n_epochs,
+                    prev_state["timestep"] + 1,
+                    order.epoch_created_at,
+                    order.price,
+                    order.id,
+                )
+                for (order, prov) in policy_input["filled"].items()
+            ],
         ],
     )
 
 
 def generate_orders(params, substep, state_history, prev_state):
     # Users get ideas every 10 steps (approximately once every week)
-    # Assume that an idea generally takes around 7 MiB. Use a beta distribution
-    # with alpha = 2, and beta = 20 to simulate this
+    mu, sig = (
+        params["avg_contract_epochs"] if "avg_contract_epochs" in params else (100, 20)
+    )
+
+    # Assume that an idea generally takes around 20 MiB in total. Use a beta
+    # distribution
+    # with alpha = 5, and beta = 20 to simulate this
+    sizes = map(lambda x: ceil(x * 100), beta(5, 20, len(prev_state["users"])))
+
+    # The new starting ID of contracts to create
+    base_id = (
+        max(
+            prev_state["orders"][-1].id if len(prev_state["orders"]) > 0 else -1,
+            prev_state["active"][-1].id if len(prev_state["active"]) > 0 else -1,
+        )
+        + 1
+    )
 
     # Choose the closest rate to the going market rate that the user can pay
     # (if their balance is not enough to cover it, just use that)
@@ -72,14 +95,30 @@ def generate_orders(params, substep, state_history, prev_state):
                 None,
                 u,
                 size,
+                floor(normal(mu, sig)),
                 -1,
                 prev_state["timestep"],
                 min(prev_state["mkt_sprice"] * size, u.balance) / size,
-                len(prev_state["orders"]),
+                id,
             )
         )
-        for (u, size) in map(
-            lambda u: (u[0], u[1] * 100),
-            zip(prev_state["users"], beta(2, 20, len(prev_state["users"]))),
+        for (u, size, id) in map(
+            lambda u: (u[0], u[1] * 100, u[2]),
+            zip(prev_state["users"], sizes, count(start=base_id)),
         )
     }
+
+
+def update_market_price(params, substep, state_history, prev_state, policy_input):
+    if len(policy_input["filled"]) == 0:
+        return ("mkt_sprice", 0)
+
+    return (
+        "mkt_sprice",
+        reduce(lambda s, order: s + order.price, policy_input["filled"].keys(), 0)
+        / len(policy_input["filled"]),
+    )
+
+
+def orphan_expired_contracts(params, substep, state_history, prev_state, policy_input):
+    return ("active", [o for o in prev_state["active"] if o.n_epochs > 0])
