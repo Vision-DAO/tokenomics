@@ -2,8 +2,7 @@
 
 import random
 from dataclasses import dataclass
-from numpy.random import normal
-from math import floor
+from numpy.random import normal, beta
 
 
 @dataclass
@@ -18,6 +17,16 @@ class Buyer:
 
     # The time at which the user last had an idea, and got a contract for it
     last_contract: int
+
+    # How many orders were timed-out due to not enough suppliers
+    unfilled_orders: int
+
+    # How many orders were created
+    all_orders: int
+
+    # The % of orders that the user can tolerate not getting filled, or being
+    # reneged upon
+    ux_tolerance: float
 
     # buyer id for hashing purpouses
     id: int
@@ -44,12 +53,24 @@ def generate_users(params, substep, state_history, prev_state, policy_input):
     if prev_state["timestep"] % new_user_rate != 0:
         return ("users", prev_users)
 
+    (alpha_reneg, beta_reneg) = (
+        params["user_timeout_dist"] if "user_timeout_dist" in params else [2, 15]
+    )
+
     return (
         "users",
         [
             *prev_users,
             *[
-                Buyer(0, floor(normal(0, 0.5)), prev_state["timestep"], i)
+                Buyer(
+                    0,
+                    normal(0, 0.5),
+                    prev_state["timestep"],
+                    0,
+                    0,
+                    beta(alpha_reneg, beta_reneg),
+                    i,
+                )
                 for i in range(len(prev_state["users"]), 2 * len(prev_state["users"]))
             ],
         ],
@@ -64,9 +85,12 @@ def register_orders(params, substep, state_history, prev_state, policy_input):
 
 
 def update_user_balances(params, substep, state_history, prev_state, policy_input):
-    if "filled" in policy_input:
-        for o in policy_input["filled"]:
-            o.buyer.balance -= o.price * o.size
+    for (buyer, o) in policy_input.items():
+        if o is None:
+            continue
+
+        o.buyer.all_orders += 1
+        o.buyer.balance -= o.price * o.size
 
     return ("users", prev_state["users"])
 
@@ -125,5 +149,25 @@ def update_last_contract(params, substep, state_history, prev_state, policy_inpu
     for u in users:
         if prev_state["timestep"] - u.last_contract == new_idea_int:
             u.last_contract = prev_state["timestep"]
+
+    return ("users", users)
+
+
+def orphan_bored_users(params, substep, state_history, prev_state, policy_input):
+    users = []
+
+    # Remove spent balances from users, and kill ones that have gone too long
+    # without an accepted order
+    for u in prev_state["users"]:
+        canceled = policy_input["user_counts"].get(u, 0)
+        u.unfilled_orders += canceled
+
+        spent = policy_input["user_balances"].get(u, 0)
+        u.balance -= spent
+
+        print(u.all_orders, u.unfilled_orders, u.ux_tolerance)
+
+        if u.all_orders == 0 or u.unfilled_orders / u.all_orders < u.ux_tolerance:
+            users.append(u)
 
     return ("users", users)

@@ -2,6 +2,7 @@ from radcad import Model, Simulation
 import matplotlib.pyplot as plt
 from actors.buyer import (
     Buyer,
+    orphan_bored_users,
     update_last_contract,
     generate_users,
     register_orders,
@@ -11,6 +12,8 @@ from actors.buyer import (
 )
 from actors.contract import (
     update_treasury_balance,
+    renegotiate_orders,
+    resubmit_orders,
     remove_fulfilled_orders,
     add_fulfilled_orders,
     generate_orders,
@@ -26,7 +29,7 @@ initial_state = {
     # Vision DAO provides 100 GiB of storage, at zero fee
     "treasury": treasury,
     "providers": [treasury],
-    "users": [Buyer(0, 0, 0, 0)],
+    "users": [Buyer(0, 0, 0, 0, 0, 0, 0)],
     "orders": [],
     "active": [],
     # The prevailing storage price: average over the last few time intervals of
@@ -36,11 +39,17 @@ initial_state = {
 }
 
 state_update_blocks = [
-    # Clear out any contracts that are past their expiration date
+    # Clear out any contracts that are past their expiration date, replace
+    # any orders that have been unfilled for too long, and cancel ones that
+    # have gone unfilled for *far* too long
     {
-        "policies": {},
+        "policies": {
+            "renegotiate_orders": renegotiate_orders,
+        },
         "variables": {
             "active": orphan_expired_contracts,
+            "orders": resubmit_orders,
+            "users": orphan_bored_users,
         },
     },
     # Add 1 new user every 30 ticks
