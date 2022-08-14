@@ -118,14 +118,14 @@ Using the previous run of the model, we can visualize the change in the balance 
 import matplotlib.pyplot as plt
 
 df["treasury"] = df["providers"].apply(lambda x: x[0].balance)
-df["providers_balance"] = df["providers"].apply(lambda providers: sum(prov.balance for prov in providers))
-df["users_balance"] = df["users"].apply(lambda users: sum(user.balance for user in users))
+df["providers_balance"] = df["providers"].apply(lambda providers: sum(prov.balance for prov in providers.values()))
+df["users_balance"] = df["users"].apply(lambda users: sum(user.balance for user in users.values()))
 df["n_users"] = df["users"].str.len()
 df["n_providers"] = df["providers"].str.len()
 df["n_unfilled_orders"] = df["orders"].str.len()
 df["n_active_orders"] = df["active"].str.len()
-df["total_capacity"] = df["providers"].apply(lambda providers: sum(prov.capacity for prov in providers))
-df["used_capacity"] = df["providers"].apply(lambda providers: sum(prov.used for prov in providers))
+df["total_capacity"] = df["providers"].apply(lambda providers: sum(prov.capacity for prov in providers.values()))
+df["used_capacity"] = df["providers"].apply(lambda providers: sum(prov.used for prov in providers.values()))
 fname = "output/all.png"
 fig, axs = plt.subplots(4)
 
@@ -140,4 +140,4 @@ return fname
 #+END_SRC
 
 #+RESULTS:
-[[file:]]
+[[file:output/all.png]]

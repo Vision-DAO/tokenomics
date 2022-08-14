@@ -52,7 +52,7 @@ def fund_users(params, substep, state_history, prev_state):
         grant_portion - (100 - prev_state["providers"][prev_state["treasury"]].balance),
     )
 
-    for u in prev_state["users"]:
+    for u in prev_state["users"].values():
         if total_doled > prev_state["providers"][prev_state["treasury"]].balance:
             break
 
@@ -101,23 +101,21 @@ def generate_providers(params, substep, state_history, prev_state):
 
     alpha_sinit_dist, beta_sinit_dist = params.get("provider_init_storage_dist", (5, 5))
 
-    prev_provs.add(
-        Provider(
-            0,
-            beta(alpha_sinit_dist, beta_sinit_dist) * 20480,
-            0,
-            normal(100, params.get("storage_price_discount_dist", 5)) / 100,
-            beta(*params.get("provider_responsiveness", [10, 5])) * 100,
-            prev_state["timestep"],
-            prev_head,
-        )
+    prev_provs[prev_head] = Provider(
+        0,
+        beta(alpha_sinit_dist, beta_sinit_dist) * 20480,
+        0,
+        normal(100, params.get("storage_price_discount_dist", 5)) / 100,
+        beta(*params.get("provider_responsiveness", [10, 5])) * 100,
+        prev_state["timestep"],
+        prev_head,
     )
 
     return {"providers": prev_provs, "provider_head": prev_head + 1}
 
 
 def register_providers(params, substep, state_history, prev_state, policy_input):
-    return ("providers", policy_input["providers"].union(prev_state["providers"]))
+    return ("providers", policy_input["providers"] | prev_state["providers"])
 
 
 def change_provider_head(params, substep, state_history, prev_state, policy_input):
@@ -131,7 +129,6 @@ def resize_prov_sectors(params, substep, state_history, prev_state, policy_input
     Depends on whether the provider is ready to reassess its profitability or
     and whether or not it is profitable.
     """
-
     providers = prev_state["providers"].copy()
 
     for prov in prev_state["providers"].values():
@@ -142,7 +139,7 @@ def resize_prov_sectors(params, substep, state_history, prev_state, policy_input
 
         # The user must shut down
         if prov.capacity == 0:
-            providers.remove(prov.id)
+            del providers[prov.id]
 
             continue
 

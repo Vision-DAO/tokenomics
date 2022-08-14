@@ -42,10 +42,8 @@ def update_funded_balances(params, substep, state_history, prev_state, policy_in
     users = prev_state["users"]
 
     for grant in policy_input["grants"]:
-        users.remove(grant["user"])
-
         grant["user"].balance += grant["value"]
-        users.add(grant["user"])
+        users[grant["user"].id] = grant["user"]
 
     return ("users", users)
 
@@ -64,20 +62,19 @@ def generate_users(params, substep, state_history, prev_state):
 
     return {
         "user_head": prev_state["user_head"] * 2,
-        "users": prev_users.union(
-            {
-                Buyer(
-                    0,
-                    normal(0, 0.5),
-                    prev_state["timestep"],
-                    0,
-                    0,
-                    beta(alpha_reneg, beta_reneg),
-                    i + prev_state["user_head"],
-                )
-                for i in range(len(prev_state["users"]))
-            }
-        ),
+        "users": prev_users
+        | {
+            (i + prev_state["user_head"]): Buyer(
+                0,
+                normal(0, 0.5),
+                prev_state["timestep"],
+                0,
+                0,
+                beta(alpha_reneg, beta_reneg),
+                i + prev_state["user_head"],
+            )
+            for i in range(len(prev_state["users"]))
+        },
     }
 
 
@@ -103,11 +100,8 @@ def update_user_balances(params, substep, state_history, prev_state, policy_inpu
         if o is None:
             continue
 
-        o.buyer.all_orders += 1
-        o.buyer.balance -= o.price * o.size
-
-        users.remove(buyer)
-        users.add(o.buyer)
+        users[o.buyer].all_orders += 1
+        users[o.buyer].balance -= o.price * o.size
 
     return ("users", prev_state["users"])
 
@@ -174,7 +168,7 @@ def update_last_contract(params, substep, state_history, prev_state, policy_inpu
 
     new_idea_int = params["new_idea_interval"] if "new_idea_interval" in params else 30
 
-    for u in users:
+    for u in users.values():
         if prev_state["timestep"] - u.last_contract == new_idea_int:
             u.last_contract = prev_state["timestep"]
 
@@ -182,18 +176,18 @@ def update_last_contract(params, substep, state_history, prev_state, policy_inpu
 
 
 def orphan_bored_users(params, substep, state_history, prev_state, policy_input):
-    users = set()
+    users = {}
 
     # Remove spent balances from users, and kill ones that have gone too long
     # without an accepted order
-    for u in prev_state["users"]:
-        canceled = policy_input["user_counts"].get(u, 0)
+    for u in prev_state["users"].values():
+        canceled = policy_input["user_counts"].get(u.id, 0)
         u.unfilled_orders += canceled
 
-        spent = policy_input["user_balances"].get(u, 0)
+        spent = policy_input["user_balances"].get(u.id, 0)
         u.balance -= spent
 
         if u.all_orders == 0 or u.unfilled_orders / u.all_orders <= u.ux_tolerance:
-            users.add(u)
+            users[u.id] = u
 
     return ("users", users)

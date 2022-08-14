@@ -15,6 +15,7 @@ class Contract:
 
     provider: int
     buyer: int
+
     init_size: float
     size: float
     next_epoch: int
@@ -52,7 +53,7 @@ def add_fulfilled_orders(params, substep, state_history, prev_state, policy_inpu
             *prev_state["active"],
             *[
                 Contract(
-                    prov,
+                    prov.id,
                     order.buyer,
                     order.size,
                     order.size,
@@ -89,7 +90,7 @@ def generate_orders(params, substep, state_history, prev_state):
             if u.last_contract != prev_state["timestep"]
             else Contract(
                 None,
-                u,
+                u.id,
                 size,
                 size,
                 floor(normal(mu, sig)),
@@ -109,7 +110,7 @@ def generate_orders(params, substep, state_history, prev_state):
             zip(
                 filter(
                     lambda u: u.last_contract == prev_state["timestep"],
-                    prev_state["users"],
+                    prev_state["users"].values(),
                 ),
                 sizes,
                 count(start=base_id),
@@ -175,13 +176,17 @@ def renegotiate_orders(params, substep, state_history, prev_state):
 
             continue
 
-        d_price = o.price - prev_state["mkt_sprice"] * o.buyer.stinginess
+        d_price = (
+            o.price - prev_state["mkt_sprice"] * prev_state["users"][o.buyer].stinginess
+        )
 
         # Re-negotiate the order by upping or lowering the price according to
         # the user's stinginess factor (if they are willing to up their price)
         if (
-            o.buyer.stinginess <= 0
-            or o.buyer.balance - d_balances[o.buyer] - d_price * o.size
+            prev_state["users"][o.buyer].stinginess <= 0
+            or prev_state["users"][o.buyer].balance
+            - d_balances[o.buyer]
+            - d_price * o.size
         ):
             orders.append(o)
 
@@ -223,13 +228,13 @@ def release_available_installments(
 ):
     """Return available stake and fee to provider, and update contract size."""
     signal = {
-        "providers": {o.id: o for o in prev_state["providers"]},
+        "providers": {o.id: o for o in prev_state["providers"].values()},
     }
 
     for o in prev_state["active"]:
         epoch_length = 1 / (o.next_epoch - o.epoch_created_at)
 
         # Refund the provider's stake, and dole out their part of the fee
-        signal["providers"][o.provider.id].balance += 2 * epoch_length * o.price
+        signal["providers"][o.provider].balance += 2 * epoch_length * o.price
 
-    return ("providers", set(signal["providers"].values()))
+    return ("providers", signal["providers"])

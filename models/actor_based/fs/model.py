@@ -40,7 +40,7 @@ initial_state = {
     "treasury": 0,
     "providers": {0: treasury},
     "provider_head": 1,
-    "users": {Buyer(0, 0, 0, 0, 0, 0, 0)},
+    "users": {0: Buyer(0, 0, 0, 0, 0, 0, 0)},
     "user_head": 1,
     "orders": [],
     "order_head": 0,
