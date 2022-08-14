@@ -62,10 +62,10 @@ def make_proposal(params, substep, state_history, prev_state, policy_input):
 
             new_proposals.append(
                 Proposal(
-                    math.floor(random() * 100),
+                    math.floor(random() * 50 + 50),
                     idea.idea_id,
                     len(prev_state["proposals"]) + len(new_proposals),
-                    int(20 * random()) + prev_state["timestep"],
+                    math.floor(random() * 40 + 10) + prev_state["timestep"],
                 )
             )
 
@@ -76,7 +76,7 @@ def vote_on_proposals(params, substep, state_history, prev_state):
     """User has a chance to vote on any proposal that they can vote on."""
     signal = {
         "proposal_votes": {},  # propsal_id -> votes
-        "user_frozen_tokens": {},  # user_id -> (idea_id -> amount)
+        "user_frozen_tokens": {},  # user_id -> (proposal_id -> (idea_id, amount))
         "user_lost_tokens": {},  # user_id -> (idea_id -> amount)
         "voting_events": [],  # list of all the voting events that happened here
     }
@@ -92,10 +92,15 @@ def vote_on_proposals(params, substep, state_history, prev_state):
 
             available_tokens = user.tokens[proposal.idea_id]
 
+            used_tokens = available_tokens * math.floor(random() * 20 + 20) / 100
+
+            if used_tokens <= 0:
+                continue
+
             (votes, used_tokens, event) = __pass_vote(
                 proposal,
                 user,
-                available_tokens * math.floor(random() * 100) / 100,
+                used_tokens,
                 prev_state["users"],
             )
 
@@ -103,7 +108,7 @@ def vote_on_proposals(params, substep, state_history, prev_state):
 
             if votes is None:
                 signal["user_lost_tokens"][user.user_id][proposal.idea_id] = (
-                    signal["user_frozen_tokens"][user.user_id].get(proposal.idea_id, 0)
+                    signal["user_lost_tokens"][user.user_id].get(proposal.idea_id, 0)
                     + used_tokens
                 )
             else:
@@ -111,9 +116,12 @@ def vote_on_proposals(params, substep, state_history, prev_state):
                     signal["proposal_votes"].get(proposal.proposal_id, 0) + votes
                 )
 
-                signal["user_frozen_tokens"][user.user_id][proposal.idea_id] = (
-                    signal["user_frozen_tokens"][user.user_id].get(proposal.idea_id, 0)
-                    + used_tokens
+                signal["user_frozen_tokens"][user.user_id][proposal.proposal_id] = (
+                    proposal.idea_id,
+                    signal["user_frozen_tokens"][user.user_id].get(
+                        proposal.proposal_id, (0, 0)
+                    )[1]
+                    + used_tokens,
                 )
 
     return signal
@@ -127,14 +135,14 @@ def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User]):
     If the votes are None, the user has been found guilty and should lose the tokens
     they voted with.
     """
-    tokens = max(0, tokens)
-
     event = Voting_event()
     event.real_result_guilty = random() < voter.chance_to_lie
 
-    enforcer_list: [] = shuffle(
-        list(filter(lambda u: u != voter and u.balance >= tokens, users))
+    enforcer_list: [] = list(
+        filter(lambda u: u.user_id != voter.user_id and u.balance >= tokens, users)
     )
+
+    shuffle(enforcer_list)
 
     enforcer = None
     if enforcer_list is not None and len(enforcer_list) > 0:
@@ -146,20 +154,31 @@ def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User]):
     if enforcer is not None and random() < enforcer.suspicion + voter.chance_to_lie / 3:
         event.enforcer = enforcer
 
-        # random number of jurors
-        jury_size = round(random() * len(users)) - 2
-        jury = shuffle(filter(lambda u: u != voter, users))[0:jury_size]
+        # random number of jurors (minus 1 for voter in users)
+        jury_size = math.ceil(random() * len(users)) - 1
+
+        # No jury, use enforcer's findings
+        if jury_size == 0:
+            event.jury_verdict_guilty = True
+
+            return (None, tokens, event)
+
+        jury = list(filter(lambda u: u != voter, users))[0 : jury_size - 1]
+
+        shuffle(jury)
 
         event.jury = jury
 
         # number of jurors that voted guilty
         # jurors usually will have less information on the voter than the enforcer
         voted_guilty = len(
-            filter(lambda j: random() < j.suspicion + voter.chance_to_lie / 7, jury)
+            list(
+                filter(lambda j: random() < j.suspicion + voter.chance_to_lie / 5, jury)
+            )
         )
 
         # 2/3 supermajority required
-        if voted_guilty / jury_size > 2 / 3:
+        if voted_guilty / jury_size >= 2 / 3:
             event.jury_verdict_guilty = True
 
             return (None, tokens, event)

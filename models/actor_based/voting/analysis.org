@@ -1,0 +1,31 @@
+#+title: Voting Model Analysis
+#+author: Lawrence Qupty
+
+Quadratic Voting Model Analysis
+
+This document generates and presents analyses of the results from the inital Vision Quadratic Voting and Enforcer-Jury model.
+
+#+name: model_run
+#+begin_src python :results none
+  import pandas as pd
+  import json
+  from radcad import Model, Simulation
+  from model import initial_state, state_update_blocks
+
+  model = Model(
+      initial_state=initial_state, state_update_blocks=state_update_blocks, params={}
+  )
+  simulation = Simulation(model=model, timesteps=200, runs=1)
+  result = simulation.run()
+
+  df = pd.DataFrame(result)
+#+end_src
+
+#+begin_src python
+  <<model_run>>
+  from tabulate import tabulate
+
+  return tabulate(df.head(), headers=df.columns, tablefmt="orgtbl")
+#+end_src
+
+#+RESULTS:

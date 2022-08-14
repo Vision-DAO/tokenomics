@@ -100,35 +100,34 @@ def runner():
         if step["substep"] != 1:
             continue
 
-        print(
-            sum(map(lambda u: u.balance, step["users"])) / len(step["users"]),
-            len(step["users"]),
+        guilty_events = list(
+            filter(lambda v: v.jury_verdict_guilty, step["voting_events"])
         )
 
-        print(
-            "proposals passed:",
-            len(list(filter(lambda p: p.is_passed, step["proposals"]))),
+        guilty_ratio = (
+            len(guilty_events) / len(step["voting_events"])
+            if len(step["voting_events"])
+            else 0
         )
 
-        guilty_ratio: float
-        if len(step["voting_events"]) > 0:
-            guilty_ratio = len(
-                list(filter(lambda v: v.real_result_guilty, step["voting_events"]))
-            ) / len(step["voting_events"])
-        else:
-            guilty_ratio = 0
-
-        guilty.append(
-            (
-                step["timestep"],
-                guilty_ratio * 100,
-            )
+        # ratio of guilty verdicits when real result is
+        # innocent over all guilty verdicts
+        false_guilty_ratio = (
+            len(list(filter(lambda v: v.real_result_guilty, guilty_events)))
+            / len(guilty_events)
+            if len(guilty_events)
+            else 0
         )
 
-    plt.plot(*zip(*guilty))
-    plt.ylim(0, 100)
+        guilty.append((guilty_ratio * 100, false_guilty_ratio * 100))
+
+    guilty_ratio, false_guilty_ratio = zip(*guilty)
+    plt.plot(guilty_ratio, label="% voting events guilty")
+    plt.plot(false_guilty_ratio, label="% voting events falsely guilty")
+    plt.ylim(0, 101)
     plt.xlabel("timestep")
-    plt.ylabel("% guilty verdicts")
+    plt.ylabel("precentage")
+    plt.legend()
     plt.show()
 
 

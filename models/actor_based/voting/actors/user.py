@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from random import random
 import math
+from numpy.random import normal
 
 
 @dataclass
@@ -54,7 +55,17 @@ def generate_users(params, substep, state_history, prev_state, policy_input):
     if prev_state["timestep"] % 30 != 0:
         return ("users", prev_users)
 
-    return ("users", [*prev_users, User(100, len(prev_users), random(), random())])
+    user = User(
+        100,
+        len(prev_users),
+        min(1, max(0, normal(0, 0.5))),
+        min(1, max(0, normal(0, 0.5))),
+    )
+
+    return (
+        "users",
+        [*prev_users, user],
+    )
 
 
 def buy_token(params, substep, state_history, prev_state):
@@ -79,7 +90,7 @@ def buy_token(params, substep, state_history, prev_state):
                 continue
 
             to_buy = (
-                math.floor(random() * 100)
+                math.floor(random() * 90 + 10)
                 / 100
                 * (user.balance / len(prev_state["ideas"]))
             )
@@ -140,24 +151,46 @@ def process_vote_output(params, substep, state_history, prev_state, policy_input
         lambda u: u.user_id in policy_input["user_frozen_tokens"], prev_state["users"]
     ):
         lost = policy_input["user_frozen_tokens"][user.user_id]
-        for token, remove_amount in lost.items():
-            user.frozen[token] = user.frozen.get(token, 0) + remove_amount
+        for proposal_id, (idea_id, remove_amount) in lost.items():
+            user.frozen[proposal_id] = (
+                idea_id,
+                user.frozen.get(proposal_id, (0, 0))[0] + remove_amount,
+            )
 
-            user.tokens[token] -= remove_amount
+            user.tokens[idea_id] -= remove_amount
 
             # might be negative due to floating point rounding
-            if user.tokens[token] < 0:
-                user.tokens[token] = 0
+            if user.tokens[idea_id] < 0:
+                user.tokens[idea_id] = 0
 
     for user in filter(
         lambda u: u.user_id in policy_input["user_lost_tokens"], prev_state["users"]
     ):
-        lost = policy_input["user_frozen_tokens"][user.user_id]
+        lost = policy_input["user_lost_tokens"][user.user_id]
         for token, remove_amount in lost.items():
             user.tokens[token] -= remove_amount
 
             # might be negative due to floating point rounding
             if user.tokens[token] < 0:
                 user.tokens[token] = 0
+
+    return ("users", prev_state["users"])
+
+
+def unfreeze_tokens(params, substep, state_history, prev_state, policy_input):
+    """Unfreeze tokens if a proposal is finished."""
+    user: User
+    for user in prev_state["users"]:
+        for proposal_id in user.frozen:
+
+            proposal = list(
+                filter(lambda p: p.proposal_id == proposal_id, prev_state["proposals"])
+            )[0]
+
+            if not proposal.is_passed:
+                continue
+
+            idea_id, amount = user.frozen[proposal_id]
+            user.tokens[idea_id] += amount
 
     return ("users", prev_state["users"])

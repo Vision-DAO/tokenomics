@@ -1,7 +1,5 @@
 """Deals with the creation and management of ideas."""
 from dataclasses import dataclass
-from random import random
-import math
 
 
 @dataclass
@@ -50,7 +48,7 @@ def generate_ideas(params, substep, state_history, prev_state, policy_input):
 
     return (
         "ideas",
-        [*prev_ideas, Idea(10 * math.floor(random() * 100), len(prev_ideas))],
+        [*prev_ideas, Idea(100, len(prev_ideas))],
     )
 
 
