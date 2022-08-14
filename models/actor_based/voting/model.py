@@ -19,7 +19,6 @@ from actors.proposal import (
     update_proposal_status,
 )
 from actors.voting_events import process_voting_events
-import matplotlib.pyplot as plt
 
 initial_state = {
     "users": [],
@@ -83,52 +82,3 @@ state_update_blocks = [
         },
     },
 ]
-
-
-def runner():
-    """Run the model."""
-    model = Model(
-        initial_state=initial_state, state_update_blocks=state_update_blocks, params={}
-    )
-
-    simulation = Simulation(model=model, timesteps=200, runs=1)
-    result = simulation.run()
-
-    guilty = []
-    for step in result:
-        if step["substep"] != 1:
-            continue
-
-        guilty_events = list(
-            filter(lambda v: v.jury_verdict_guilty, step["voting_events"])
-        )
-
-        guilty_ratio = (
-            len(guilty_events) / len(step["voting_events"])
-            if len(step["voting_events"])
-            else 0
-        )
-
-        # ratio of guilty verdicits when real result is
-        # innocent over all guilty verdicts
-        false_guilty_ratio = (
-            len(list(filter(lambda v: v.real_result_guilty, guilty_events)))
-            / len(guilty_events)
-            if len(guilty_events)
-            else 0
-        )
-
-        guilty.append((guilty_ratio * 100, false_guilty_ratio * 100))
-
-    guilty_ratio, false_guilty_ratio = zip(*guilty)
-    plt.plot(guilty_ratio, label="% voting events guilty")
-    plt.plot(false_guilty_ratio, label="% voting events falsely guilty")
-    plt.ylim(0, 101)
-    plt.xlabel("timestep")
-    plt.ylabel("precentage")
-    plt.legend()
-    plt.show()
-
-
-if __name__ == "__main__":
-    runner()
