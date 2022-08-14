@@ -39,29 +39,33 @@ class Buyer:
 
 
 def update_funded_balances(params, substep, state_history, prev_state, policy_input):
+    users = prev_state["users"]
+
     for grant in policy_input["grants"]:
+        users.remove(grant["user"])
+
         grant["user"].balance += grant["value"]
+        users.add(grant["user"])
 
-    return ("users", prev_state["users"])
+    return ("users", users)
 
 
-def generate_users(params, substep, state_history, prev_state, policy_input):
+def generate_users(params, substep, state_history, prev_state):
     # Add a new user for every user every 3 weeks
     prev_users = prev_state["users"]
     new_user_rate = params["new_user_interval"] if "new_user_interval" in params else 10
 
     if prev_state["timestep"] % new_user_rate != 0:
-        return ("users", prev_users)
+        return {"user_head": prev_state["user_head"], "users": prev_users}
 
     (alpha_reneg, beta_reneg) = (
         params["user_timeout_dist"] if "user_timeout_dist" in params else [2, 15]
     )
 
-    return (
-        "users",
-        [
-            *prev_users,
-            *[
+    return {
+        "user_head": prev_state["user_head"] * 2,
+        "users": prev_users.union(
+            {
                 Buyer(
                     0,
                     normal(0, 0.5),
@@ -69,12 +73,20 @@ def generate_users(params, substep, state_history, prev_state, policy_input):
                     0,
                     0,
                     beta(alpha_reneg, beta_reneg),
-                    i,
+                    i + prev_state["user_head"],
                 )
-                for i in range(len(prev_state["users"]), 2 * len(prev_state["users"]))
-            ],
-        ],
-    )
+                for i in range(len(prev_state["users"]))
+            }
+        ),
+    }
+
+
+def register_users(params, substep, state_history, prev_state, policy_input):
+    return ("users", policy_input["users"])
+
+
+def change_user_head(params, substep, state_history, prev_state, policy_input):
+    return ("user_head", policy_input["user_head"])
 
 
 def register_orders(params, substep, state_history, prev_state, policy_input):
@@ -85,12 +97,17 @@ def register_orders(params, substep, state_history, prev_state, policy_input):
 
 
 def update_user_balances(params, substep, state_history, prev_state, policy_input):
+    users = prev_state["users"]
+
     for (buyer, o) in policy_input.items():
         if o is None:
             continue
 
         o.buyer.all_orders += 1
         o.buyer.balance -= o.price * o.size
+
+        users.remove(buyer)
+        users.add(o.buyer)
 
     return ("users", prev_state["users"])
 
@@ -110,12 +127,15 @@ def negotiate_orders(params, substep, state_history, prev_state):
         "spent": {},
     }
 
-    for prov in prev_state["providers"]:
+    # Number of VIS a provider needs to match of a buyer's bid to accept it
+    col_rate = params.get("collateralization_rate", 1.0)
+
+    for prov in prev_state["providers"].values():
         mine = order_options[:]
         order_options = order_options[3:] if len(order_options) > 20 else []
 
         # Choose the most profitable options to fill up our
-        eligible = [x for x in mine if x.price >= prov.min_fee]
+        eligible = [x for x in mine if x.price >= prov.min_fee(params, prev_state)]
 
         # Sort in ascending order to remove least profitable options
         best = sorted(eligible, key=lambda x: x.price * x.size)
@@ -123,17 +143,25 @@ def negotiate_orders(params, substep, state_history, prev_state):
         taken = best
         used = sum(x.size for x in best)
 
+        # The provider must stake collateral = 100% of the value of the contract
+        balance_used = sum(col_rate * x.size * x.price for x in best)
+
         # Remove the last profitable options that are above our capacity
-        while used + prov.used > prov.capacity and len(taken) > 0:
+        while (
+            used + prov.used > prov.capacity
+            or prov.balance - balance_used < 0
+            and len(taken) > 0
+        ):
             freed = taken.pop()
             used -= freed.size
+            balance_used -= col_rate * freed.size * freed.price
 
         # Use the determined price to fill all of the orders, and remove the
         # specified units from the provider
         signal = {
             "filled": {**{order: prov for order in taken}, **signal["filled"]},
             "spent": {
-                prov: used,
+                prov.id: (used, balance_used),
                 **signal["spent"],
             },
         }
@@ -154,7 +182,7 @@ def update_last_contract(params, substep, state_history, prev_state, policy_inpu
 
 
 def orphan_bored_users(params, substep, state_history, prev_state, policy_input):
-    users = []
+    users = set()
 
     # Remove spent balances from users, and kill ones that have gone too long
     # without an accepted order
@@ -165,9 +193,7 @@ def orphan_bored_users(params, substep, state_history, prev_state, policy_input)
         spent = policy_input["user_balances"].get(u, 0)
         u.balance -= spent
 
-        print(u.all_orders, u.unfilled_orders, u.ux_tolerance)
-
-        if u.all_orders == 0 or u.unfilled_orders / u.all_orders < u.ux_tolerance:
-            users.append(u)
+        if u.all_orders == 0 or u.unfilled_orders / u.all_orders <= u.ux_tolerance:
+            users.add(u)
 
     return ("users", users)

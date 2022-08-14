@@ -13,11 +13,11 @@ from itertools import count
 class Contract:
     """Represent an agreement between a storage provider and user."""
 
-    provider: Provider
-    buyer: Buyer
+    provider: int
+    buyer: int
+    init_size: float
     size: float
     next_epoch: int
-    n_epochs: int
     epoch_created_at: int
     price: float
 
@@ -31,9 +31,11 @@ class Contract:
 
 
 def update_treasury_balance(params, substep, state_history, prev_state, policy_input):
-    prev_state["treasury"].balance -= policy_input["drain_treasury"]
+    prev_state["providers"][prev_state["treasury"]].balance -= policy_input[
+        "drain_treasury"
+    ]
 
-    return ("treasury", prev_state["treasury"])
+    return ("providers", prev_state["providers"])
 
 
 def remove_fulfilled_orders(params, substep, state_history, prev_state, policy_input):
@@ -53,9 +55,9 @@ def add_fulfilled_orders(params, substep, state_history, prev_state, policy_inpu
                     prov,
                     order.buyer,
                     order.size,
-                    order.n_epochs,
-                    prev_state["timestep"] + 1,
-                    order.epoch_created_at,
+                    order.size,
+                    order.next_epoch + prev_state["timestep"],
+                    prev_state["timestep"],
                     order.price,
                     order.id,
                 )
@@ -77,13 +79,7 @@ def generate_orders(params, substep, state_history, prev_state):
     sizes = map(lambda x: ceil(x * 100), beta(5, 20, len(prev_state["users"])))
 
     # The new starting ID of contracts to create
-    base_id = (
-        max(
-            prev_state["orders"][-1].id if len(prev_state["orders"]) > 0 else -1,
-            prev_state["active"][-1].id if len(prev_state["active"]) > 0 else -1,
-        )
-        + 1
-    )
+    base_id = prev_state["order_head"]
 
     # Choose the closest rate to the going market rate that the user can pay
     # (if their balance is not enough to cover it, just use that)
@@ -95,8 +91,8 @@ def generate_orders(params, substep, state_history, prev_state):
                 None,
                 u,
                 size,
+                size,
                 floor(normal(mu, sig)),
-                -1,
                 prev_state["timestep"],
                 min(
                     prev_state["mkt_sprice"]
@@ -110,7 +106,14 @@ def generate_orders(params, substep, state_history, prev_state):
         )
         for (u, size, id) in map(
             lambda u: (u[0], u[1] * 100, u[2]),
-            zip(prev_state["users"], sizes, count(start=base_id)),
+            zip(
+                filter(
+                    lambda u: u.last_contract == prev_state["timestep"],
+                    prev_state["users"],
+                ),
+                sizes,
+                count(start=base_id),
+            ),
         )
     }
 
@@ -127,7 +130,14 @@ def update_market_price(params, substep, state_history, prev_state, policy_input
 
 
 def orphan_expired_contracts(params, substep, state_history, prev_state, policy_input):
-    return ("active", [o for o in prev_state["active"] if o.n_epochs > 0])
+    return (
+        "active",
+        [
+            o
+            for o in prev_state["active"]
+            if prev_state["timestep"] - o.epoch_created_at < o.next_epoch
+        ],
+    )
 
 
 def renegotiate_orders(params, substep, state_history, prev_state):
@@ -185,8 +195,8 @@ def renegotiate_orders(params, substep, state_history, prev_state):
                 o.provider,
                 o.buyer,
                 o.size,
-                o.next_epoch,
-                o.n_epochs,
+                o.size,
+                o.next_epoch + (prev_state["timestep"] - o.epoch_created_at),
                 prev_state["timestep"],
                 o.price + d_price,
                 o.id,
@@ -202,3 +212,24 @@ def renegotiate_orders(params, substep, state_history, prev_state):
 
 def resubmit_orders(params, substep, state_history, prev_state, policy_input):
     return ("orders", policy_input["orders"])
+
+
+def change_order_head(params, substep, state_history, prev_state, policy_input):
+    return ("order_head", prev_state["order_head"] + len(policy_input))
+
+
+def release_available_installments(
+    params, substep, state_history, prev_state, policy_input
+):
+    """Return available stake and fee to provider, and update contract size."""
+    signal = {
+        "providers": {o.id: o for o in prev_state["providers"]},
+    }
+
+    for o in prev_state["active"]:
+        epoch_length = 1 / (o.next_epoch - o.epoch_created_at)
+
+        # Refund the provider's stake, and dole out their part of the fee
+        signal["providers"][o.provider.id].balance += 2 * epoch_length * o.price
+
+    return ("providers", set(signal["providers"].values()))

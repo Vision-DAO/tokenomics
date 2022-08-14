@@ -2,7 +2,18 @@
 #+DATE: 08/07/2022
 #+AUTHOR: Dowland Aiello
 
-n* File System Model Analysis
+* File System Model Analysis
+
+** TODO Items Left [0/2]
+*** TODO Asset Pricing (VIS)
+*** TODO Disputes [0/2]
+**** TODO Scenario 1: Unintentional
+
+Perhaps due to network or hard drive failure. Chance dictated by a distribution in system parameters. Assume reliability increases over time
+
+**** TODO .Scenario 2: on purpose
+
+Due to empirical probability of j
 
 Presented below are some analyses of the results of the initial run of the Vision file system simulation below:
 
@@ -34,7 +45,48 @@ Presented below are some analyses of the results of the initial run of the Visio
       # How many timed-out (or unfilled in general) orders it takes for a user
       # to just leave. Expressed as a beta distribution (most will leave after
       # just 1)
-      "user_timeout_dist": [[2, 15]]
+      "user_timeout_dist": [[2, 15]],
+
+      # How often providers spawn
+      "new_provider_interval": [60],
+
+      # How long it takes for the provider to respond to changes in their
+      # profitability: how many timesteps after having a sector unused, they
+      # downsize, or go out of business entirely
+      "provider_responsiveness": [[10, 5]],
+
+      # How much space providers tend to start out with (in MiB)
+      "provider_init_storage_dist": [[5, 5]],
+
+      # Assume that the flucuating price of storage space (in $/MiB) decreases
+      # over time (1/2 every 2 years), and that the price of storage space
+      # decreases logarithmically with storage size
+      "d_biyear_storage_price": [0.5],
+
+      # The width of the discount or markup that different providers experience,
+      # compared to the global price of storage
+      "storage_price_discount_dist": [25],
+
+      # The starting price of SSD storage in USD / MiB
+      "base_storage_price": [0.000208666693],
+
+      # The number of timesteps in a year's time
+      "ticks_per_year": [512],
+
+      # The % of a buyer's bid that a provider must put up to accept the bid
+      "collateralization_rate": [1.0],
+
+      # The initial chance users' equipment have of malfunctioning, causing
+      # a slashing event
+      "hardware_success_rate": [0.99],
+
+      # The variance in quality of hardware among users of Vision (higher
+      # quality = lower chance of failure)
+      "hardware_quality_dist": [5],
+
+      # The rate at which hardware gets more reliable over time in general
+      # (5%/yr)
+      "d_biyear_hardware_quality": [1.1],
   }
 
   model = Model(
@@ -65,7 +117,9 @@ Using the previous run of the model, we can visualize the change in the balance 
 <<model_run>>
 import matplotlib.pyplot as plt
 
-df["treasury"] = df["treasury"].apply(lambda x: x.balance)
+df["treasury"] = df["providers"].apply(lambda x: x[0].balance)
+df["providers_balance"] = df["providers"].apply(lambda providers: sum(prov.balance for prov in providers))
+df["users_balance"] = df["users"].apply(lambda users: sum(user.balance for user in users))
 df["n_users"] = df["users"].str.len()
 df["n_providers"] = df["providers"].str.len()
 df["n_unfilled_orders"] = df["orders"].str.len()
@@ -73,16 +127,17 @@ df["n_active_orders"] = df["active"].str.len()
 df["total_capacity"] = df["providers"].apply(lambda providers: sum(prov.capacity for prov in providers))
 df["used_capacity"] = df["providers"].apply(lambda providers: sum(prov.used for prov in providers))
 fname = "output/all.png"
-fig, axs = plt.subplots(3)
+fig, axs = plt.subplots(4)
 
 #df[["treasury", "n_users", "mkt_sprice", "n_providers", "n_unfilled_orders", "n_active_orders"]].plot()
 df[["total_capacity", "used_capacity"]].plot(ax=axs[0])
-df[["n_active_orders", "n_unfilled_orders", "n_users"]].plot(ax=axs[1])
-df[["mkt_sprice"]].plot(ax=axs[2])
+df[["n_active_orders", "n_unfilled_orders", "n_users", "n_providers"]].plot(ax=axs[1])
+df[["mkt_sprice", "mkt_vprice", "mkt_fsprice"]].plot(ax=axs[2])
+df[["treasury", "providers_balance", "users_balance"]].plot(ax=axs[3])
 plt.savefig(fname)
 
 return fname
 #+END_SRC
 
 #+RESULTS:
-[[file:output/all.png]]
+[[file:]]
