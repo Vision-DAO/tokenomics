@@ -21,10 +21,9 @@ from actors.proposal import (
 from actors.voting_events import process_voting_events
 import matplotlib.pyplot as plt
 
-idea = Idea(100, 0)
 initial_state = {
     "users": [],
-    "ideas": [idea],
+    "ideas": [Idea(100, 0)],
     "proposals": [],
     "voting_events": [],
 }
