@@ -1,7 +1,34 @@
-from radcad import Model, Simulation
+from system import (
+    update_market_storage_price,
+    update_market_gas_price,
+    update_market_vis_price,
+    deliver_user_vis_supply,
+    take_profit,
+    calc_market_vis_price,
+    fill_market_vis_demand,
+    fill_market_vis_supply,
+    deliver_market_vis_demand,
+    sell_bored_user_funds,
+)
+from actors.challenge import (
+    create_challenges,
+    spend_challenge_gas,
+    answer_challenges,
+    register_challenges,
+    update_challenge_counters,
+    steal_storage,
+    slash_providers,
+    reward_enforcers,
+    kill_challenges,
+    remove_slashed_orders,
+)
 from actors.buyer import (
+    Buyer,
+    orphan_bored_users,
     update_last_contract,
     generate_users,
+    register_users,
+    change_user_head,
     register_orders,
     update_funded_balances,
     negotiate_orders,
@@ -9,34 +36,149 @@ from actors.buyer import (
 )
 from actors.contract import (
     update_treasury_balance,
+    renegotiate_orders,
+    resubmit_orders,
     remove_fulfilled_orders,
+    release_available_installments,
     add_fulfilled_orders,
+    change_order_head,
     generate_orders,
+    update_market_price,
+    delete_expired_contracts,
+    orphan_expired_contracts,
 )
-from actors.provider import Provider, fund_users, update_provider_capacities
-import pandas as pd
+from actors.provider import (
+    Provider,
+    fund_users,
+    apply_sector_resize,
+    orphan_money_orders,
+    update_provider_capacities,
+    resize_prov_sectors,
+    update_expired_provider_capacities,
+    generate_providers,
+    register_demand_increase,
+    register_providers,
+    change_provider_head,
+)
 
 # Start the system off with just one user, who is providing storage to no one
-treasury = Provider(100, 102400, 0, 0, 0)
+treasury = Provider(100, 51200, 0, 0.0, 1024, 0, 0, 0, 1024, 0.01, 0)
 initial_state = {
     # Vision DAO provides 100 GiB of storage, at zero fee
-    "treasury": treasury,
-    "providers": [treasury],
-    "users": [],
+    "treasury": 0,
+    "providers": {0: treasury},
+    "provider_head": 1,
+    "users": {0: Buyer(0, 0, 0, 0, 0, 0, 0, 256, 0.1, 0)},
+    "user_head": 1,
     "orders": [],
+    "order_head": 0,
     "active": [],
     # The prevailing storage price: average over the last few time intervals of
     # what users' orders were cleared at. Zero, initially, because the treasury
     # fulfills all orders, unconditionally.
     "mkt_sprice": 0,
+    # The price of storage in $ / MiB
+    "mkt_fsprice": 0,
+    # The price of an Etheruem transaction in $
+    "mkt_gprice": 0,
+    # The price of 1 VIS (in USD)
+    # Assume an initial market cap of $1,000
+    "mkt_vprice": 10,
+    # Active challenges between an enforcer and a provider
+    "challenges": {},
+    # Number of MiB of data that was NOT served when it should have been per
+    # contract
+    "storage_stolen": 0,
+    # Supply vs demand table for dirty calculation of vis price
+    "v_demand": {},
+    "v_supply": {},
+    # Total number of VIS slashed
+    "v_slashed": {},
+    # Total number of VIS burned intentionally
+    "v_burned": {},
 }
 
 state_update_blocks = [
-    # Add 1 new user every 30 ticks
+    # Update the global storage price based on the expected discount rate in 2
+    # years. Also update gas prices
     {
         "policies": {},
         "variables": {
-            "users": generate_users,
+            "mkt_fsprice": update_market_storage_price,
+            "mkt_gprice": update_market_gas_price,
+        },
+    },
+    {
+        "policies": {
+            "calc_market_vis_price": calc_market_vis_price,
+        },
+        "variables": {
+            "mkt_vprice": update_market_vis_price,
+            "v_demand": fill_market_vis_demand,
+            "v_supply": fill_market_vis_supply,
+            "providers": deliver_market_vis_demand,
+            "users": deliver_user_vis_supply,
+        },
+    },
+    # Resize any provider sectors that are no longer profitable, if they are
+    # within their responsiveness periods
+    {
+        "policies": {
+            "resize_prov_sectors": resize_prov_sectors,
+        },
+        "variables": {
+            "providers": apply_sector_resize,
+            "v_demand": orphan_money_orders,
+        },
+    },
+    # Release epoch rewards for all active orders
+    {
+        "policies": {},
+        "variables": {
+            "providers": release_available_installments,
+        },
+    },
+    # Replace any orders that have been unfilled for too long, and cancel ones
+    # that have gone unfilled for *far* too long
+    {
+        "policies": {
+            "renegotiate_orders": renegotiate_orders,
+        },
+        "variables": {
+            "orders": resubmit_orders,
+            "users": orphan_bored_users,
+            "v_supply": sell_bored_user_funds,
+        },
+    },
+    # Clear out any orders past their expiration date
+    {
+        "policies": {
+            "orphan_expired_contracts": orphan_expired_contracts,
+        },
+        "variables": {
+            "active": delete_expired_contracts,
+            "providers": update_expired_provider_capacities,
+        },
+    },
+    # Add 1 new user every 30 ticks
+    {
+        "policies": {
+            "generate_users": generate_users,
+        },
+        "variables": {
+            "users": register_users,
+            "user_head": change_user_head,
+        },
+    },
+    # Add 1 new provider every 50 ticks
+    {
+        "policies": {
+            "generate_providers": generate_providers,
+        },
+        "variables": {
+            "providers": register_providers,
+            "provider_head": change_provider_head,
+            "v_demand": register_demand_increase,
         },
     },
     # Make sure any user without any funds recives a grant of 0.5% of the Vision
@@ -47,7 +189,7 @@ state_update_blocks = [
         },
         "variables": {
             "users": update_funded_balances,
-            "treasury": update_treasury_balance,
+            "providers": update_treasury_balance,
         },
     },
     # Mark any users that have not had a new idea in the last 10 ticks.
@@ -65,6 +207,7 @@ state_update_blocks = [
         },
         "variables": {
             "orders": register_orders,
+            "order_head": change_order_head,
             "users": update_user_balances,
         },
     },
@@ -78,21 +221,40 @@ state_update_blocks = [
             "orders": remove_fulfilled_orders,
             "providers": update_provider_capacities,
             "active": add_fulfilled_orders,
+            "mkt_sprice": update_market_price,
+        },
+    },
+    # Update the next time providers are eligible for challenges within the
+    # the context of their contracts, and initiate challenges with providers
+    # who are ready
+    {
+        "policies": {
+            "create_challenges": create_challenges,
+        },
+        "variables": {
+            "users": spend_challenge_gas,
+            "challenges": register_challenges,
+            "active": update_challenge_counters,
+        },
+    },
+    # Produce a proof if we have one, or don't if we took a risk
+    {
+        "policies": {
+            "answer_challenges": answer_challenges,
+        },
+        "variables": {
+            "storage_stolen": steal_storage,
+            "providers": slash_providers,
+            "users": reward_enforcers,
+            "challenges": kill_challenges,
+            "active": remove_slashed_orders,
+        },
+    },
+    # Have users sell part of their stake every once in a while
+    {
+        "policies": {},
+        "variables": {
+            "v_supply": take_profit,
         },
     },
 ]
-
-
-def runner():
-    model = Model(
-        initial_state=initial_state, state_update_blocks=state_update_blocks, params={}
-    )
-    simulation = Simulation(model=model, timesteps=10, runs=1)
-    result = simulation.run()
-
-    df = pd.DataFrame(result)
-    print(df)
-
-
-if __name__ == "__main__":
-    runner()
