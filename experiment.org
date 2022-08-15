@@ -9,6 +9,8 @@ Described below is an experiment conducted through a dynamical systems model usi
 This experiment is conducted in two parts, each measuring efficiency through different metrics of these two security mechanisms, respectively.
 The implementation of this experiment is available in full [[https://github.com/vision-dao/tokenomics][here]].
 
+It should be noted that the absolute numbers presented in the results of running this model are for illustrative purposes only, and are only indicative of general trends, at best.
+
 ** File System Model
 The file system model encodes the staking, slashing, and market behaviors of Vision's file storage mechanism. It measures "efficiency" through three main metrics: *resistance*, *resiliance*, and *reactivity*. *Resistance* describes the ability of the system to withstand and discourage attacks by malicious actors, and is measured by the rate of "stealing," or agreeing to serve a file for a period of time, and purposely or unintentionally (e.g., due to hard drive failure) neglecting to do so. *Resilience* describes the ability of the system to retain users, and grow in adverse conditions (e.g., where a high number of actors are attempting to "game" the system, or when very little storage is to go around due to physical constraints). *Reactivity* describes the ability of the system to scale with increased demand, in such a way that the most users are fulfilled at the lowest possible cost, and is measured through demanded capacity vs provided capacity.
 
