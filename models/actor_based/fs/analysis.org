@@ -34,7 +34,7 @@ Presented below are some analyses of the results of the initial run of the Visio
       "avg_contract_epochs": [[100, 20]],
 
       # The number of timesteps it takes to make a new user
-      "new_user_interval": [30],
+      "new_user_interval": [60],
 
       # How often the user has a new idea that they need storing
       "new_idea_interval": [30],
@@ -119,12 +119,17 @@ Presented below are some analyses of the results of the initial run of the Visio
       # Distribution rates for slashing
       "slashing_dist_dao": [0.25],
       "slashing_dist_enf": [0.5],
+
+      # How often and how much of their portfolio most people usually profit-
+      # take
+      "profit_taking_interval": [[100, 25]],
+      "profit_taking_amt_dist": [[1, 5]],
   }
 
   model = Model(
       initial_state=initial_state, state_update_blocks=state_update_blocks, params=params
   )
-  simulation = Simulation(model=model, timesteps=200, runs=1)
+  simulation = Simulation(model=model, timesteps=500, runs=1)
   result = simulation.run()
 
   df = pd.DataFrame(result)
@@ -162,13 +167,14 @@ df["used_capacity"] = df["providers"].apply(lambda providers: sum(prov.used for 
 df["total_supply"] = 100
 df["circulating_supply"] = df.apply(lambda row: sum(prov.balance for prov in row["providers"].values()) + sum(user.balance for user in row["users"].values()), axis=1)
 fname = "output/all.png"
-fig, axs = plt.subplots(4)
+fig, axs = plt.subplots(5)
 
 #df[["treasury", "n_users", "mkt_sprice", "n_providers", "n_unfilled_orders", "n_active_orders"]].plot()
 df[["total_capacity", "used_capacity", "storage_stolen"]].plot(ax=axs[0])
 df[["n_active_orders", "n_unfilled_orders", "n_users", "n_providers", "n_challenges"]].plot(ax=axs[1])
 df[["mkt_sprice", "mkt_fsprice"]].plot(ax=axs[2])
-df[["treasury", "providers_balance", "users_balance", "total_supply", "circulating_supply"]].plot(ax=axs[3])
+df[["mkt_vprice"]].plot(ax=axs[3])
+df[["treasury", "providers_balance", "users_balance", "total_supply", "circulating_supply"]].plot(ax=axs[4])
 plt.savefig(fname)
 
 return fname

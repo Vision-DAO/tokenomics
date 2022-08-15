@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from random import random
 from numpy.random import beta, normal
-from math import pow
+from math import pow, ceil
 
 
 @dataclass
@@ -27,6 +27,10 @@ class Provider:
     # The value the provider has received by NOT actually storing the file
     forges_won: float
     risk_tolerance: float
+
+    # How often this user sells their portfolio
+    sell_interval: float
+    sell_pct: float
 
     # provider id for hashing purpouses
     id: int
@@ -109,6 +113,7 @@ def generate_providers(params, substep, state_history, prev_state):
     parameters.
     """
 
+    v_demand = prev_state["v_demand"]
     prev_head = prev_state["provider_head"]
     prev_provs = prev_state["providers"]
 
@@ -126,10 +131,42 @@ def generate_providers(params, substep, state_history, prev_state):
         prev_state["timestep"],
         0,
         normal(*params.get("provider_required_cheat_payoff", [0, 0.25])),
+        ceil(normal(*params.get("profit_taking_interval", [200, 50]))),
+        beta(*params.get("profit_taking_amt_dist", [1, 5])),
         prev_head,
     )
 
-    return {"providers": prev_provs, "provider_head": prev_head + 1}
+    # Get some tokens on the market for doing some storage stuff
+    acceptable_price = round(
+        prev_state["mkt_vprice"] * (prev_provs[prev_head].risk_tolerance + 1), 2
+    )
+
+    if acceptable_price <= 0:
+        acceptable_price = 0.00001
+
+    if acceptable_price not in v_demand:
+        v_demand[acceptable_price] = [0, {}]
+
+    # Find out how many tokens we would need at this price to fulfill our storage
+    calc_ctx = {
+        "mkt_fsprice": prev_state["mkt_fsprice"],
+        "mkt_vprice": acceptable_price,
+    }
+    my_demand = (
+        prev_provs[prev_head].min_fee(params, calc_ctx) * prev_provs[prev_head].capacity
+    )
+    v_demand[acceptable_price][0] += my_demand
+    v_demand[acceptable_price][1][prev_head] = my_demand
+
+    return {
+        "providers": prev_provs,
+        "provider_head": prev_head + 1,
+        "v_demand": v_demand,
+    }
+
+
+def register_demand_increase(params, substep, state_history, prev_state, policy_input):
+    return ("v_demand", prev_state["v_demand"])
 
 
 def register_providers(params, substep, state_history, prev_state, policy_input):
@@ -140,7 +177,7 @@ def change_provider_head(params, substep, state_history, prev_state, policy_inpu
     return ("provider_head", policy_input["provider_head"])
 
 
-def resize_prov_sectors(params, substep, state_history, prev_state, policy_input):
+def resize_prov_sectors(params, substep, state_history, prev_state):
     """
     Expands or contracts the provider's available space.
 
@@ -150,7 +187,8 @@ def resize_prov_sectors(params, substep, state_history, prev_state, policy_input
     providers = prev_state["providers"].copy()
 
     for prov in prev_state["providers"].values():
-        if prev_state["timestep"] - prov.last_order < prov.timeout_dir:
+        last = prov.last_order
+        if prev_state["timestep"] - last < prov.timeout_dir:
             continue
 
         prov.last_order = prev_state["timestep"]
@@ -169,7 +207,9 @@ def resize_prov_sectors(params, substep, state_history, prev_state, policy_input
 
         # Increase the producer's capacity by however much space wasn't filled
         # since the last adjustment
-        since_history = state_history[prov.last_order : prev_state["timestep"]]
+        since_history = list(
+            map(lambda s: s[-1], state_history[last : prev_state["timestep"]])
+        )
         prov.capacity += max(
             sum(
                 sum(o.size for o in state["orders"])
@@ -180,4 +220,26 @@ def resize_prov_sectors(params, substep, state_history, prev_state, policy_input
             0,
         )
 
-    return ("providers", providers)
+    return {"providers": providers}
+
+
+def apply_sector_resize(params, substep, state_history, prev_state, policy_input):
+    return ("providers", policy_input["providers"])
+
+
+def orphan_money_orders(params, substep, state_history, prev_state, policy_input):
+    return (
+        "v_demand",
+        {
+            price: [
+                infos[0],
+                {
+                    buyer: size
+                    for buyer, size in infos[1].items()
+                    if buyer in policy_input["providers"]
+                    and buyer in prev_state["providers"]
+                },
+            ]
+            for price, infos in prev_state["v_demand"].items()
+        },
+    )

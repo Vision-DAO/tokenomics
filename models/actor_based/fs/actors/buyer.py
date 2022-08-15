@@ -3,6 +3,7 @@
 import random
 from dataclasses import dataclass
 from numpy.random import normal, beta
+from math import ceil
 
 
 @dataclass
@@ -31,6 +32,10 @@ class Buyer:
     # The # of Vision tokens that the user has won in challenges
     challenges_won: float
 
+    # How often and how much of their portfolio this user sells
+    sell_interval: float
+    sell_pct: float
+
     # buyer id for hashing purpouses
     id: int
 
@@ -45,8 +50,7 @@ def update_funded_balances(params, substep, state_history, prev_state, policy_in
     users = prev_state["users"]
 
     for grant in policy_input["grants"]:
-        grant["user"].balance += grant["value"]
-        users[grant["user"].id] = grant["user"]
+        users[grant["user"].id].balance += grant["value"]
 
     return ("users", users)
 
@@ -75,6 +79,8 @@ def generate_users(params, substep, state_history, prev_state):
                 0,
                 beta(alpha_reneg, beta_reneg),
                 0,
+                ceil(normal(*params.get("profit_taking_interval", [200, 50]))),
+                beta(*params.get("profit_taking_amt_dist", [1, 5])),
                 i + prev_state["user_head"],
             )
             for i in range(len(prev_state["users"]))

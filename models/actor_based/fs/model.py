@@ -1,4 +1,15 @@
-from system import update_market_storage_price, update_market_gas_price
+from system import (
+    update_market_storage_price,
+    update_market_gas_price,
+    update_market_vis_price,
+    deliver_user_vis_supply,
+    take_profit,
+    calc_market_vis_price,
+    fill_market_vis_demand,
+    fill_market_vis_supply,
+    deliver_market_vis_demand,
+    sell_bored_user_funds,
+)
 from actors.challenge import (
     create_challenges,
     spend_challenge_gas,
@@ -39,22 +50,25 @@ from actors.contract import (
 from actors.provider import (
     Provider,
     fund_users,
+    apply_sector_resize,
+    orphan_money_orders,
     update_provider_capacities,
     resize_prov_sectors,
     update_expired_provider_capacities,
     generate_providers,
+    register_demand_increase,
     register_providers,
     change_provider_head,
 )
 
 # Start the system off with just one user, who is providing storage to no one
-treasury = Provider(100, 51200, 0, 0.0, 1024, 0, 0, 0, 0)
+treasury = Provider(100, 51200, 0, 0.0, 1024, 0, 0, 0, 1024, 0.01, 0)
 initial_state = {
     # Vision DAO provides 100 GiB of storage, at zero fee
     "treasury": 0,
     "providers": {0: treasury},
     "provider_head": 1,
-    "users": {0: Buyer(0, 0, 0, 0, 0, 0, 0, 0)},
+    "users": {0: Buyer(0, 0, 0, 0, 0, 0, 0, 256, 0.1, 0)},
     "user_head": 1,
     "orders": [],
     "order_head": 0,
@@ -75,6 +89,13 @@ initial_state = {
     # Number of MiB of data that was NOT served when it should have been per
     # contract
     "storage_stolen": 0,
+    # Supply vs demand table for dirty calculation of vis price
+    "v_demand": {},
+    "v_supply": {},
+    # Total number of VIS slashed
+    "v_slashed": {},
+    # Total number of VIS burned intentionally
+    "v_burned": {},
 }
 
 state_update_blocks = [
@@ -87,12 +108,27 @@ state_update_blocks = [
             "mkt_gprice": update_market_gas_price,
         },
     },
+    {
+        "policies": {
+            "calc_market_vis_price": calc_market_vis_price,
+        },
+        "variables": {
+            "mkt_vprice": update_market_vis_price,
+            "v_demand": fill_market_vis_demand,
+            "v_supply": fill_market_vis_supply,
+            "providers": deliver_market_vis_demand,
+            "users": deliver_user_vis_supply,
+        },
+    },
     # Resize any provider sectors that are no longer profitable, if they are
     # within their responsiveness periods
     {
-        "policies": {},
+        "policies": {
+            "resize_prov_sectors": resize_prov_sectors,
+        },
         "variables": {
-            "providers": resize_prov_sectors,
+            "providers": apply_sector_resize,
+            "v_demand": orphan_money_orders,
         },
     },
     # Release epoch rewards for all active orders
@@ -111,6 +147,7 @@ state_update_blocks = [
         "variables": {
             "orders": resubmit_orders,
             "users": orphan_bored_users,
+            "v_supply": sell_bored_user_funds,
         },
     },
     # Clear out any orders past their expiration date
@@ -141,6 +178,7 @@ state_update_blocks = [
         "variables": {
             "providers": register_providers,
             "provider_head": change_provider_head,
+            "v_demand": register_demand_increase,
         },
     },
     # Make sure any user without any funds recives a grant of 0.5% of the Vision
@@ -210,6 +248,13 @@ state_update_blocks = [
             "users": reward_enforcers,
             "challenges": kill_challenges,
             "active": remove_slashed_orders,
+        },
+    },
+    # Have users sell part of their stake every once in a while
+    {
+        "policies": {},
+        "variables": {
+            "v_supply": take_profit,
         },
     },
 ]

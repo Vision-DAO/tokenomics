@@ -45,7 +45,11 @@ def update_treasury_balance(params, substep, state_history, prev_state, policy_i
 def remove_fulfilled_orders(params, substep, state_history, prev_state, policy_input):
     return (
         "orders",
-        [o for o in prev_state["orders"] if o not in policy_input["filled"]],
+        [
+            o
+            for o in prev_state["orders"]
+            if o not in policy_input["filled"] and o.buyer in prev_state["users"]
+        ],
     )
 
 
@@ -143,6 +147,7 @@ def orphan_expired_contracts(params, substep, state_history, prev_state):
             o
             for o in prev_state["active"]
             if prev_state["timestep"] - o.epoch_created_at >= o.next_epoch
+            and o.buyer in prev_state["users"]
         },
     }
 

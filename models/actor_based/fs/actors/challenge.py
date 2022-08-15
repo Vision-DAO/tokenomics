@@ -143,6 +143,7 @@ def answer_challenges(params, substep, state_history, prev_state):
 
                 # Distribute according to params, and google doc
                 # (burning implicit when initial stake cast)
+                print(users[challenge.enforcer].challenges_won)
                 users[challenge.enforcer].challenges_won += reaped * params.get(
                     "slashing_dist_enf", 0.5
                 )

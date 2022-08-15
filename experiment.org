@@ -1,0 +1,27 @@
+#+NAME: Vision Tokenomics Simulation
+#+DATE: 08/15/2022
+#+AUTHOR: Dowland Aiello, Lawrence Qupty
+
+* Simulating Vision Tokenomics for Determining Efficiency
+
+Described below is an experiment conducted through a dynamical systems model using the radCAD software. It encodes the behaviors described in the [[https://docs.google.com/document/d/1E_eEqxaBaR9nsZocqP9tPOKYcGYXYcRplaZ0z4U9crY/edit?usp=sharing][Vision tokenomics paper]]. The main goal of the experiment is to theoretically model the efficiency of security measures that arise from Vision's tokenomics, namely the proof of storage and proof of identity uniqueness mechanisms.
+
+This experiment is conducted in two parts, each measuring efficiency through different metrics of these two security mechanisms, respectively.
+The implementation of this experiment is available in full [[https://github.com/vision-dao/tokenomics][here]].
+
+** File System Model
+The file system model encodes the staking, slashing, and market behaviors of Vision's file storage mechanism. It measures "efficiency" through three main metrics: *resistance*, *resiliance*, and *reactivity*. *Resistance* describes the ability of the system to withstand and discourage attacks by malicious actors, and is measured by the rate of "stealing," or agreeing to serve a file for a period of time, and purposely or unintentionally (e.g., due to hard drive failure) neglecting to do so. *Resilience* describes the ability of the system to retain users, and grow in adverse conditions (e.g., where a high number of actors are attempting to "game" the system, or when very little storage is to go around due to physical constraints). *Reactivity* describes the ability of the system to scale with increased demand, in such a way that the most users are fulfilled at the lowest possible cost, and is measured through demanded capacity vs provided capacity.
+
+*** Methodology
+
+The file system model makes several assumptions about external factors that influence the decision-making of its users. These include:
+
+| Grants per Block (VIS)  | The rate at which Vision DAO doles out grants of VIS to users.                                                                              |
+| Grant portion (%)       | The percentage of its balance that Vision DAO is willing to give out as grants.                                                             |
+| Average contract length | How long users' storage contracts with Vision providres tend to be. A normal distribution with values specified in the [[https://github.com/vision-dao/tokenomics/blob/main/analysis.org][analysis file]].       |
+| User Spawn Rate         | How often new users join the Vision network, described relative to the number of current users. (i.e., how many users does 1 user attract?) |
+| Idea Spawn Rate         | How often Vision users come up with Ideas that they want serviced via the file storage network.                                             |
+
+And several others described more extensively in the source code repository. Most importantly, the experiment assumes only one initial user: the Vision DAO itself. It also assumes that Vision DAO has an initial amount of storage space that it can provide unconditionally to its first users.
+
+*** TODO Results
