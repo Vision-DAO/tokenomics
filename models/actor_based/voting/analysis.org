@@ -5,71 +5,152 @@ Quadratic Voting Model Analysis
 
 This document generates and presents analyses of the results from the inital Vision Quadratic Voting and Enforcer-Jury model.
 
+* Setup
+
 #+NAME: model_run
 #+begin_src python :results none
   import pandas as pd
-  import json
   from radcad import Model, Simulation
   from model import initial_state, state_update_blocks
 
+  params = {
+      # volume of an idea's tokens in circulation
+      "idea_token_volume": [100],
+      # ticks it take to generate an idea
+      "ticks_per_idea": [45],
+      # ticks it takes to generate a user
+      "ticks_per_user": [10],
+      "user_starting_VIS": [100],
+      # VIS infusion for all users, set to 0 for no infusion
+      "ticks_per_VIS_gift": [50],
+      "VIS_gift_amount": [50],
+      # chance for a user to buy any available idea's token on each tick
+      "user_chance_to_buy_token": [0.20],
+      # range specifing the precentage of their VIS a user will use
+      # to buy a given token if they do decide to buy
+      "user_token_buy_precent_range": [(0.05, 0.50)],
+      # chance to vote on each proposal given they have the tokens to
+      "user_vote_chance": [0.5],
+      # precent range of a user's tokens to vote with
+      "user_vote_tokens_precent_range": [(0.30, 1)],
+      # proposals will choose a random amount of required votes in this range
+      # (incluse, exclusive)
+      "proposal_required_votes_range": [(5, 15)],
+      # random range for proposal voting timeout in ticks
+      "proposal_timeout_range": [(10, 25)],
+      # mean for the normal distribution representing user
+      # suspition (procolivity to vote guilty)
+      # E.g., a mean of 0.5 means the average user will vote
+      # guilty given no other information 50% of the time
+      "user_sus_mean": [0.8],
+      # normal mean for average user chance to commit voter fraud
+      "user_lie_mean": [0.3],
+      # how accurate the enforcers or jury members actually are
+      # E.g. 0.5 means the enforcer will vote guilty 50% of the
+      # time the user actually is guilty
+      "enforcer_information": [0.6],
+      "jury_information": [0.3],
+  }
+
   model = Model(
-      initial_state=initial_state, state_update_blocks=state_update_blocks, params={}
+      initial_state=initial_state, state_update_blocks=state_update_blocks, params=params
   )
 
-  simulation = Simulation(model=model, timesteps=200, runs=1)
+  simulation = Simulation(model=model, timesteps=300, runs=1)
   result = simulation.run()
 
-  # df = pd.DataFrame(result)
+  df = pd.DataFrame(result)
 #+end_src
 
 * Enforcer-Jury Model
 
-Get data to be used for graphing.
+Parse and graph data relevant to the results of the Enforcer-Jury Model
+
+** Parse Data
 
 #+NAME: enforcer_jury_data
-#+BEGIN_SRC python :results none :noweb yes
+#+BEGIN_SRC python :results output :noweb yes
   <<model_run>>
+  df["n_users"] = df["users"].str.len()
+  df["n_ideas"] = df["ideas"].str.len()
+  df["n_proposals"] = df["proposals"].str.len()
 
-  import matplotlib.pyplot as plt
+  df["n_guilty"] = df["voting_events"].apply(
+      lambda events: sum(1 for event in events if event.jury_verdict_guilty)
+  )
+  df["n_innocent"] = df["voting_events"].apply(
+      lambda events: sum(1 for event in events if not event.jury_verdict_guilty)
+  )
 
-  guilty = []
-  for step in result:
-        if step["substep"] != 1:
-              continue
+  df["n_falsely_guilty"] = df["voting_events"].apply(
+      lambda events: sum(
+          1
+          for event in events
+          if event.jury_verdict_guilty and not event.real_result_guilty
+      )
+  )
+  df["n_falsely_innocent"] = df["voting_events"].apply(
+      lambda events: sum(
+          1
+          for event in events
+          if not event.jury_verdict_guilty and event.real_result_guilty
+      )
+  )
 
-        guilty_events = list(
-              filter(lambda v: v.jury_verdict_guilty, step["voting_events"])
-        )
+  df["guilty_ratio"] = df.apply(
+      lambda row: row["n_guilty"] / len(row["voting_events"])
+      if len(row["voting_events"])
+      else 0,
+      axis=1,
+  )
 
-        guilty_ratio = (
-              len(guilty_events) / len(step["voting_events"])
-              if len(step["voting_events"])
-              else 0
-        )
+  df["falsely_guilty_ratio"] = df.apply(
+      lambda row: row["n_falsely_guilty"] / row["n_guilty"] if row["n_guilty"] else 0,
+      axis=1,
+  )
 
-        # ratio of guilty verdicits when real result is
-        # innocent over all guilty verdicts
-        false_guilty_ratio = (
-              len(list(filter(lambda v: v.real_result_guilty, guilty_events)))
-              / len(guilty_events)
-              if len(guilty_events)
-              else 0
-        )
+  df["falsely_innocent_ratio"] = df.apply(
+      lambda row: row["n_falsely_innocent"] / row["n_innocent"]
+      if row["n_innocent"]
+      else 0,
+      axis=1,
+  )
 
-        guilty.append((guilty_ratio * 100, false_guilty_ratio * 100))
+  df["tokens_voted"] = df["voting_events"].apply(
+      lambda events: sum(map(lambda event: event.voter_tokens, events))
+  )
+
+  df["tokens_voted_per_user"] = df.apply(
+      lambda row: row["tokens_voted"] / len(row["users"]) if len(row["users"]) else 0,
+      axis=1,
+  )
+
+  df["proposals_passed"] = df["proposals"].apply(
+      lambda proposals: sum(1 for proposal in proposals if proposal.is_passed)
+  )
+
+  df["proposals_timed_out"] = df["proposals"].apply(
+      lambda proposals: sum(1 for proposal in proposals if proposal.is_passed == False)
+  )
 #+end_src
 
-Plot statistics on voting outcomes.
+** Graph Data
 
-#+begin_src python :results none :noweb yes
+#+BEGIN_SRC python :results none :noweb yes
   <<enforcer_jury_data>>
+  import matplotlib.pyplot as plt
 
-  guilty_ratio, false_guilty_ratio = zip(*guilty)
-  plt.plot(guilty_ratio, label="% voting events guilty")
-  plt.plot(false_guilty_ratio, label="% voting events falsely guilty")
-  plt.ylim(0, 101)
-  plt.xlabel("timestep")
-  plt.ylabel("precentage")
-  plt.legend()
-  plt.show()
+  fig, axs = plt.subplots(3,figsize=(12, 10))
+
+  df[["tokens_voted_per_user", "n_users"]].plot(ax=axs[0])
+  axs[0].legend(["Tokens voted per user", "Number of users"])
+
+  df[["falsely_innocent_ratio", "falsely_guilty_ratio"]].plot(ax=axs[1])
+  axs[1].legend(["Falsely innocent ratio", "Falesly guilty ratio"])
+
+  df[["proposals_passed", "proposals_timed_out", "n_proposals"]].plot(ax=axs[2])
+  axs[2].legend(["Proposals passed", "Proposals timed out", "Total proposals created"])
+
+  fname = "output/all.png"
+  plt.savefig(fname)
 #+end_src

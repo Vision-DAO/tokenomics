@@ -43,12 +43,12 @@ def generate_ideas(params, substep, state_history, prev_state, policy_input):
     """Add a new user every 45 ticks."""
     prev_ideas = prev_state["ideas"]
 
-    if prev_state["timestep"] % 45 != 0:
+    if prev_state["timestep"] % params["ticks_per_idea"] != 0:
         return ("ideas", prev_ideas)
 
     return (
         "ideas",
-        [*prev_ideas, Idea(100, len(prev_ideas))],
+        [*prev_ideas, Idea(params["idea_token_volume"], len(prev_ideas))],
     )
 
 

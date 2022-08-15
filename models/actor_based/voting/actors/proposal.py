@@ -1,6 +1,6 @@
 """Deals with the creation and management of proposals."""
 from dataclasses import dataclass
-from random import random, shuffle
+from random import randint, uniform, random, shuffle
 from actors.idea import Idea
 from actors.user import User
 from actors.voting_events import Voting_event
@@ -51,6 +51,8 @@ def make_proposal(params, substep, state_history, prev_state, policy_input):
     if prev_state["timestep"] % 10 != 0:
         return ("proposals", prev_state["proposals"])
 
+    low_votes, high_votes = params["proposal_required_votes_range"]
+    low_timout, high_timeout = params["proposal_timeout_range"]
     new_proposals = []
     for user in prev_state["users"]:
         idea: Idea
@@ -62,10 +64,10 @@ def make_proposal(params, substep, state_history, prev_state, policy_input):
 
             new_proposals.append(
                 Proposal(
-                    math.floor(random() * 50 + 50),
+                    uniform(low_timout, high_timeout),
                     idea.idea_id,
                     len(prev_state["proposals"]) + len(new_proposals),
-                    math.floor(random() * 40 + 10) + prev_state["timestep"],
+                    randint(low_timout, high_timeout) + prev_state["timestep"],
                 )
             )
 
@@ -87,12 +89,18 @@ def vote_on_proposals(params, substep, state_history, prev_state):
 
         proposal: Proposal
         for proposal in filter(lambda p: not p.is_passed, prev_state["proposals"]):
-            if random() > 0.1 or proposal.idea_id not in user.tokens:
+            if (
+                random() > params["user_vote_chance"]
+                or proposal.idea_id not in user.tokens
+            ):
                 continue
 
             available_tokens = user.tokens[proposal.idea_id]
 
-            used_tokens = available_tokens * math.floor(random() * 20 + 20) / 100
+            used_tokens = available_tokens * uniform(
+                params["user_vote_tokens_precent_range"][0],
+                params["user_vote_tokens_precent_range"][1],
+            )
 
             if used_tokens <= 0:
                 continue
@@ -102,6 +110,7 @@ def vote_on_proposals(params, substep, state_history, prev_state):
                 user,
                 used_tokens,
                 prev_state["users"],
+                params,
             )
 
             signal["voting_events"].append(event)
@@ -127,7 +136,7 @@ def vote_on_proposals(params, substep, state_history, prev_state):
     return signal
 
 
-def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User]):
+def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User], params):
     """
     Use quadratic voting. With the enforcer-jury mechanism.
 
@@ -136,6 +145,7 @@ def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User]):
     they voted with.
     """
     event = Voting_event()
+
     event.real_result_guilty = random() < voter.chance_to_lie
 
     enforcer_list: [] = list(
@@ -148,10 +158,19 @@ def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User]):
     if enforcer_list is not None and len(enforcer_list) > 0:
         enforcer = enforcer_list[0]
 
+    enforcer_verdict = None
+    if enforcer:
+        enforcer_verdict = (
+            random()
+            < enforcer.suspicion
+            + (2 * event.real_result_guilty - 1) * params["enforcer_information"]
+        )
+
     # start jury-enforcer mechanism if there is an enforcer
     # large amount of enforcer's claim is based on the voter's chance to lie since we
     # are assuming the enforcer has special information on the voter
-    if enforcer is not None and random() < enforcer.suspicion + voter.chance_to_lie / 3:
+    if enforcer and enforcer_verdict:
+
         event.enforcer = enforcer
 
         # random number of jurors (minus 1 for voter in users)
@@ -173,7 +192,12 @@ def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User]):
         # jurors usually will have less information on the voter than the enforcer
         voted_guilty = len(
             list(
-                filter(lambda j: random() < j.suspicion + voter.chance_to_lie / 5, jury)
+                filter(
+                    lambda j: random()
+                    < j.suspicion
+                    + (2 * event.real_result_guilty - 1) * params["jury_information"],
+                    jury,
+                )
             )
         )
 
@@ -182,6 +206,8 @@ def __pass_vote(proposal: Proposal, voter: User, tokens: float, users: [User]):
             event.jury_verdict_guilty = True
 
             return (None, tokens, event)
+
+    event.voter_tokens = tokens
 
     return (math.sqrt(tokens), tokens, event)
 

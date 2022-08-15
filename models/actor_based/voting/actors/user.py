@@ -1,7 +1,6 @@
 """Deals with the creation and management of users."""
 from dataclasses import dataclass
-from random import random
-import math
+from random import random, uniform
 from numpy.random import normal
 
 
@@ -49,17 +48,17 @@ class User:
 
 
 def generate_users(params, substep, state_history, prev_state, policy_input):
-    """Add a new user every 30 ticks."""
+    """Add a new user every some params["ticks_per_user"] ticks."""
     prev_users = prev_state["users"]
 
-    if prev_state["timestep"] % 30 != 0:
+    if prev_state["timestep"] % params["ticks_per_user"] != 0:
         return ("users", prev_users)
 
     user = User(
-        100,
+        params["user_starting_VIS"],
         len(prev_users),
-        min(1, max(0, normal(0, 0.5))),
-        min(1, max(0, normal(0, 0.5))),
+        min(1, max(0, normal(params["user_lie_mean"], 0.5))),
+        min(1, max(0, normal(params["user_sus_mean"], 0.5))),
     )
 
     return (
@@ -78,7 +77,7 @@ def buy_token(params, substep, state_history, prev_state):
     }
 
     for user in prev_state["users"]:
-        # 10% chance to buy each token, taking a scaled random amount of their balance.
+        # some chance to buy each token, taking a scaled random amount of their balance.
         amount_spent = 0
 
         signal["user_new_tokens"][user.user_id] = {}
@@ -86,14 +85,13 @@ def buy_token(params, substep, state_history, prev_state):
 
         for idea in prev_state["ideas"]:
 
-            if random() >= 0.1:
+            if random() > params["user_chance_to_buy_token"]:
                 continue
 
-            to_buy = (
-                math.floor(random() * 90 + 10)
-                / 100
-                * (user.balance / len(prev_state["ideas"]))
-            )
+            to_buy = uniform(
+                params["user_token_buy_precent_range"][0],
+                params["user_token_buy_precent_range"][1],
+            ) * (user.balance - amount_spent)
 
             if to_buy > idea.treasury:
                 to_buy = idea.treasury
@@ -120,13 +118,16 @@ def buy_token(params, substep, state_history, prev_state):
 
 
 def pay_users(params, substep, state_history, prev_state, policy_input):
-    """Pay users 50 VIS every 50 ticks."""
-    if prev_state["timestep"] % 50 != 0:
+    """Pay users some VIS every few ticks specified by params."""
+    if (
+        prev_state["timestep"] % params["ticks_per_VIS_gift"] != 0
+        or not params["ticks_per_VIS_gift"]
+    ):
         return ("users", prev_state["users"])
 
     user: User
     for user in prev_state["users"]:
-        user.balance += 50
+        user.balance += params["VIS_gift_amount"]
 
     return ("users", prev_state["users"])
 

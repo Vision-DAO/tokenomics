@@ -1,7 +1,5 @@
 """Models the voting mechanisms of Vision."""
-from radcad import Model, Simulation
 from actors.idea import (
-    Idea,
     generate_ideas,
     process_token_sell,
 )
@@ -22,7 +20,7 @@ from actors.voting_events import process_voting_events
 
 initial_state = {
     "users": [],
-    "ideas": [Idea(100, 0)],
+    "ideas": [],
     "proposals": [],
     "voting_events": [],
 }
