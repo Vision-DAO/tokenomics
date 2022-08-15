@@ -1,5 +1,6 @@
 """Implements counters for global variables, and stochastic processes."""
 from math import pow
+from numpy.random import normal
 
 
 def update_market_storage_price(
@@ -25,3 +26,15 @@ def update_market_storage_price(
             discount_rate, prev_state["timestep"] / params.get("ticks_per_year", 128)
         ),
     )
+
+
+def update_market_gas_price(params, substep, state_history, prev_state, policy_input):
+    """
+    Update the global price of executing an Etherum transaction through params.
+
+    Assume prices fall along a normal distribution using the mu and sigma
+    defined in the analysis.org file.
+    """
+    (mu, sigma) = params.get("gas_price_dist", (0.1, 0.025))
+
+    return ("mkt_gprice", normal(mu, sigma))

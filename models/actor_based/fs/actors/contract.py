@@ -1,7 +1,5 @@
 """Implements methods for creating, and interacting with contracts."""
 
-from .provider import Provider
-from .buyer import Buyer
 from numpy.random import beta, normal
 from dataclasses import dataclass
 from functools import reduce
@@ -21,6 +19,11 @@ class Contract:
     next_epoch: int
     epoch_created_at: int
     price: float
+
+    # The next timestap at which the provider managing the contract will be
+    # eligible to be challenged by an enforcer
+    challenges_left: int
+    next_challenge: int
 
     id: int
 
@@ -60,6 +63,8 @@ def add_fulfilled_orders(params, substep, state_history, prev_state, policy_inpu
                     order.next_epoch + prev_state["timestep"],
                     prev_state["timestep"],
                     order.price,
+                    order.challenges_left,
+                    order.next_challenge,
                     order.id,
                 )
                 for (order, prov) in policy_input["filled"].items()
@@ -98,10 +103,12 @@ def generate_orders(params, substep, state_history, prev_state):
                 min(
                     prev_state["mkt_sprice"]
                     * size
-                    * (u.stinginess if u.stinginess < 0 else 1),
+                    / (abs(u.stinginess) if u.stinginess < 0 else 1),
                     u.balance,
                 )
                 / size,
+                params.get("challenges_per_contract", 8),
+                -1,
                 id,
             )
         )
@@ -130,14 +137,20 @@ def update_market_price(params, substep, state_history, prev_state, policy_input
     )
 
 
-def orphan_expired_contracts(params, substep, state_history, prev_state, policy_input):
-    return (
-        "active",
-        [
+def orphan_expired_contracts(params, substep, state_history, prev_state):
+    return {
+        "active": {
             o
             for o in prev_state["active"]
-            if prev_state["timestep"] - o.epoch_created_at < o.next_epoch
-        ],
+            if prev_state["timestep"] - o.epoch_created_at >= o.next_epoch
+        },
+    }
+
+
+def delete_expired_contracts(params, substep, state_history, prev_state, policy_input):
+    return (
+        "active",
+        [o for o in prev_state["active"] if o not in policy_input["active"]],
     )
 
 
@@ -180,6 +193,10 @@ def renegotiate_orders(params, substep, state_history, prev_state):
             o.price - prev_state["mkt_sprice"] * prev_state["users"][o.buyer].stinginess
         )
 
+        # No orders exist, so we can get away with paying literally anything more than nothing
+        if prev_state["mkt_sprice"] == 0:
+            d_price = params.get("haggle_resolution", 0.000001)
+
         # Re-negotiate the order by upping or lowering the price according to
         # the user's stinginess factor (if they are willing to up their price)
         if (
@@ -187,6 +204,7 @@ def renegotiate_orders(params, substep, state_history, prev_state):
             or prev_state["users"][o.buyer].balance
             - d_balances[o.buyer]
             - d_price * o.size
+            < 0
         ):
             orders.append(o)
 
@@ -204,6 +222,8 @@ def renegotiate_orders(params, substep, state_history, prev_state):
                 o.next_epoch + (prev_state["timestep"] - o.epoch_created_at),
                 prev_state["timestep"],
                 o.price + d_price,
+                o.challenges_left,
+                o.next_challenge,
                 o.id,
             )
         )

@@ -28,6 +28,9 @@ class Buyer:
     # reneged upon
     ux_tolerance: float
 
+    # The # of Vision tokens that the user has won in challenges
+    challenges_won: float
+
     # buyer id for hashing purpouses
     id: int
 
@@ -66,11 +69,12 @@ def generate_users(params, substep, state_history, prev_state):
         | {
             (i + prev_state["user_head"]): Buyer(
                 0,
-                normal(0, 0.5),
+                normal(*params.get("user_stinginess_dist", (0, 5))),
                 prev_state["timestep"],
                 0,
                 0,
                 beta(alpha_reneg, beta_reneg),
+                0,
                 i + prev_state["user_head"],
             )
             for i in range(len(prev_state["users"]))
@@ -125,8 +129,7 @@ def negotiate_orders(params, substep, state_history, prev_state):
     col_rate = params.get("collateralization_rate", 1.0)
 
     for prov in prev_state["providers"].values():
-        mine = order_options[:]
-        order_options = order_options[3:] if len(order_options) > 20 else []
+        mine = [o for o in order_options if o not in signal["filled"]]
 
         # Choose the most profitable options to fill up our
         eligible = [x for x in mine if x.price >= prov.min_fee(params, prev_state)]

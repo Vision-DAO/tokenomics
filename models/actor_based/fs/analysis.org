@@ -4,14 +4,18 @@
 
 * File System Model Analysis
 
-** TODO Items Left [0/2]
-*** TODO Asset Pricing (VIS)
-*** TODO Disputes [0/2]
-**** TODO Scenario 1: Unintentional
+** TODO Items Left [1/2]
+*** TODO Asset Pricing (VIS) [0/1]
+**** TODO Transfers when users leave (exit = sell)
+*** DONE Disputes [2/2]
+CLOSED: [2022-08-15 Mon 01:58]
+**** DONE Scenario 1: Unintentional
+CLOSED: [2022-08-15 Mon 01:58]
 
 Perhaps due to network or hard drive failure. Chance dictated by a distribution in system parameters. Assume reliability increases over time
 
-**** TODO .Scenario 2: on purpose
+**** DONE .Scenario 2: on purpose
+CLOSED: [2022-08-15 Mon 01:58]
 
 Due to empirical probability of j
 
@@ -46,6 +50,10 @@ Presented below are some analyses of the results of the initial run of the Visio
       # to just leave. Expressed as a beta distribution (most will leave after
       # just 1)
       "user_timeout_dist": [[2, 15]],
+
+      # How much above or below the market price the user tends to place their
+      # asks at
+      "user_stinginess_dist": [(0, 5)],
 
       # How often providers spawn
       "new_provider_interval": [60],
@@ -87,6 +95,30 @@ Presented below are some analyses of the results of the initial run of the Visio
       # The rate at which hardware gets more reliable over time in general
       # (5%/yr)
       "d_biyear_hardware_quality": [1.1],
+
+      # The maximum number of challenges that may be issued during the course
+      # of a contract's existence. Pretty much arbitrary
+      "challenges_per_contract": [8],
+
+      # What prices of gas on Ethereum can range from. Assume polygon-level gas
+      # costs, and that gas is the same for all operations (ie, this is mean
+      # gas limit * gas price)
+      "gas_price_dist": [(0.1, 0.025)],
+
+      # How many Vision users become aware of an order being eligible for
+      # challenging
+      "challenge_awareness_rate": [0.1],
+
+      # The number of VIS that the minimum order price will be for priority
+      "haggle_resolution": [0.000001],
+
+      # The minimum percentage of their balance that a provider needs to
+      # continue cheating
+      "provider_required_cheat_payoff": [[0, 0.25]],
+
+      # Distribution rates for slashing
+      "slashing_dist_dao": [0.25],
+      "slashing_dist_enf": [0.5],
   }
 
   model = Model(
@@ -124,16 +156,19 @@ df["n_users"] = df["users"].str.len()
 df["n_providers"] = df["providers"].str.len()
 df["n_unfilled_orders"] = df["orders"].str.len()
 df["n_active_orders"] = df["active"].str.len()
+df["n_challenges"] = df["challenges"].str.len()
 df["total_capacity"] = df["providers"].apply(lambda providers: sum(prov.capacity for prov in providers.values()))
 df["used_capacity"] = df["providers"].apply(lambda providers: sum(prov.used for prov in providers.values()))
+df["total_supply"] = 100
+df["circulating_supply"] = df.apply(lambda row: sum(prov.balance for prov in row["providers"].values()) + sum(user.balance for user in row["users"].values()), axis=1)
 fname = "output/all.png"
 fig, axs = plt.subplots(4)
 
 #df[["treasury", "n_users", "mkt_sprice", "n_providers", "n_unfilled_orders", "n_active_orders"]].plot()
-df[["total_capacity", "used_capacity"]].plot(ax=axs[0])
-df[["n_active_orders", "n_unfilled_orders", "n_users", "n_providers"]].plot(ax=axs[1])
-df[["mkt_sprice", "mkt_vprice", "mkt_fsprice"]].plot(ax=axs[2])
-df[["treasury", "providers_balance", "users_balance"]].plot(ax=axs[3])
+df[["total_capacity", "used_capacity", "storage_stolen"]].plot(ax=axs[0])
+df[["n_active_orders", "n_unfilled_orders", "n_users", "n_providers", "n_challenges"]].plot(ax=axs[1])
+df[["mkt_sprice", "mkt_fsprice"]].plot(ax=axs[2])
+df[["treasury", "providers_balance", "users_balance", "total_supply", "circulating_supply"]].plot(ax=axs[3])
 plt.savefig(fname)
 
 return fname

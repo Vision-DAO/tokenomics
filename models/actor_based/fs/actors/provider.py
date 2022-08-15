@@ -24,6 +24,10 @@ class Provider:
     timeout_dir: int
     last_order: int
 
+    # The value the provider has received by NOT actually storing the file
+    forges_won: float
+    risk_tolerance: float
+
     # provider id for hashing purpouses
     id: int
 
@@ -87,6 +91,18 @@ def update_provider_capacities(
     return ("providers", providers)
 
 
+def update_expired_provider_capacities(
+    params, substep, state_history, prev_state, policy_input
+):
+    providers = prev_state["providers"]
+
+    # Remove the spent capacities for each order that is past expiry
+    for o in policy_input["active"]:
+        providers[o.provider].used -= o.size
+
+    return ("providers", providers)
+
+
 def generate_providers(params, substep, state_history, prev_state):
     """
     Generate new providers, and update the provider ID head according to system
@@ -108,6 +124,8 @@ def generate_providers(params, substep, state_history, prev_state):
         normal(100, params.get("storage_price_discount_dist", 5)) / 100,
         beta(*params.get("provider_responsiveness", [10, 5])) * 100,
         prev_state["timestep"],
+        0,
+        normal(*params.get("provider_required_cheat_payoff", [0, 0.25])),
         prev_head,
     )
 
