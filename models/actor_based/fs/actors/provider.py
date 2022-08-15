@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 from random import random
+from numpy.random import beta, normal
+from math import pow, ceil
 
 
 @dataclass
@@ -13,8 +15,22 @@ class Provider:
     capacity: float
     used: float
 
-    # The minimum fee the provider accepts for bids
-    min_fee: float
+    # The minimum fee the provider accepts for bids, and the discount they
+    # receive on the mkt price of the raw materials (storage)
+    mat_price_discount: float
+
+    # Last time the provider received an order, number of timesteps it can go
+    # without an order before "going out of business"
+    timeout_dir: int
+    last_order: int
+
+    # The value the provider has received by NOT actually storing the file
+    forges_won: float
+    risk_tolerance: float
+
+    # How often this user sells their portfolio
+    sell_interval: float
+    sell_pct: float
 
     # provider id for hashing purpouses
     id: int
@@ -25,22 +41,44 @@ class Provider:
     def __eq__(self, o):
         return self.id == o.id
 
+    def min_fee(self, params, prev_state):
+        return (
+            (pow(0.5, self.capacity / 953674 + 1) + 0.5)
+            * self.mat_price_discount
+            * prev_state["mkt_fsprice"]
+            / prev_state["mkt_vprice"]
+        )
+
 
 def fund_users(params, substep, state_history, prev_state):
-    # Only dole out 0.5% of the treasury, at most, to each unfunded user
+    # Only dole out 0.5% of the treasury, at most, per funding round
     grants = []
     total_doled = 0
+    grant_portion = params["grant_portion"] if "grant_portion" in params else 20
+    grants_available = min(
+        params["grant_max"] if "grant_max" in params else 5,
+        grant_portion - (100 - prev_state["providers"][prev_state["treasury"]].balance),
+    )
 
-    for u in prev_state["users"]:
-        if total_doled > prev_state["treasury"].balance:
+    for u in prev_state["users"].values():
+        if total_doled > prev_state["providers"][prev_state["treasury"]].balance:
             break
 
-        # This user is at risk of leaving our platform. Give them some money
-        if u.balance == 0:
-            grant = random() * 0.05 * prev_state["treasury"].balance
+        if total_doled >= grants_available:
+            break
 
-            grants.append({"user": u, "value": grant})
-            total_doled += grant
+        # This user is not at risk of leaving our platform
+        if u.balance != 0:
+            continue
+
+        grant = min(
+            random() * 0.05 * prev_state["providers"][prev_state["treasury"]].balance,
+            grants_available - total_doled,
+        )
+
+        grants.append({"user": u, "value": grant})
+        total_doled += grant
+        grants_available -= grant
 
     return {"drain_treasury": total_doled, "grants": grants}
 
@@ -50,10 +88,158 @@ def update_provider_capacities(
 ):
     providers = prev_state["providers"]
 
-    for prov in providers:
-        if prov not in policy_input["spent"]:
-            continue
-
-        prov.used += policy_input["spent"][prov]
+    for (id, (fs_spent, v_spent)) in policy_input["spent"].items():
+        providers[id].used += fs_spent
+        providers[id].balance -= v_spent
 
     return ("providers", providers)
+
+
+def update_expired_provider_capacities(
+    params, substep, state_history, prev_state, policy_input
+):
+    providers = prev_state["providers"]
+
+    # Remove the spent capacities for each order that is past expiry
+    for o in policy_input["active"]:
+        providers[o.provider].used -= o.size
+
+    return ("providers", providers)
+
+
+def generate_providers(params, substep, state_history, prev_state):
+    """
+    Generate new providers, and update the provider ID head according to system
+    parameters.
+    """
+
+    v_demand = prev_state["v_demand"]
+    prev_head = prev_state["provider_head"]
+    prev_provs = prev_state["providers"]
+
+    if prev_state["timestep"] % params.get("new_provider_interval", 60) != 0:
+        return {"providers": prev_provs, "provider_head": prev_head}
+
+    alpha_sinit_dist, beta_sinit_dist = params.get("provider_init_storage_dist", (5, 5))
+
+    prev_provs[prev_head] = Provider(
+        0,
+        beta(alpha_sinit_dist, beta_sinit_dist) * 20480,
+        0,
+        normal(100, params.get("storage_price_discount_dist", 5)) / 100,
+        beta(*params.get("provider_responsiveness", [10, 5])) * 100,
+        prev_state["timestep"],
+        0,
+        normal(*params.get("provider_required_cheat_payoff", [0, 0.25])),
+        ceil(normal(*params.get("profit_taking_interval", [200, 50]))),
+        beta(*params.get("profit_taking_amt_dist", [1, 5])),
+        prev_head,
+    )
+
+    # Get some tokens on the market for doing some storage stuff
+    acceptable_price = round(
+        prev_state["mkt_vprice"] * (prev_provs[prev_head].risk_tolerance + 1), 2
+    )
+
+    if acceptable_price <= 0:
+        acceptable_price = 0.00001
+
+    if acceptable_price not in v_demand:
+        v_demand[acceptable_price] = [0, {}]
+
+    # Find out how many tokens we would need at this price to fulfill our storage
+    calc_ctx = {
+        "mkt_fsprice": prev_state["mkt_fsprice"],
+        "mkt_vprice": acceptable_price,
+    }
+    my_demand = (
+        prev_provs[prev_head].min_fee(params, calc_ctx) * prev_provs[prev_head].capacity
+    )
+    v_demand[acceptable_price][0] += my_demand
+    v_demand[acceptable_price][1][prev_head] = my_demand
+
+    return {
+        "providers": prev_provs,
+        "provider_head": prev_head + 1,
+        "v_demand": v_demand,
+    }
+
+
+def register_demand_increase(params, substep, state_history, prev_state, policy_input):
+    return ("v_demand", prev_state["v_demand"])
+
+
+def register_providers(params, substep, state_history, prev_state, policy_input):
+    return ("providers", policy_input["providers"] | prev_state["providers"])
+
+
+def change_provider_head(params, substep, state_history, prev_state, policy_input):
+    return ("provider_head", policy_input["provider_head"])
+
+
+def resize_prov_sectors(params, substep, state_history, prev_state):
+    """
+    Expands or contracts the provider's available space.
+
+    Depends on whether the provider is ready to reassess its profitability or
+    and whether or not it is profitable.
+    """
+    providers = prev_state["providers"].copy()
+
+    for prov in prev_state["providers"].values():
+        last = prov.last_order
+        if prev_state["timestep"] - last < prov.timeout_dir:
+            continue
+
+        prov.last_order = prev_state["timestep"]
+
+        # The user must shut down
+        if prov.capacity == 0:
+            del providers[prov.id]
+
+            continue
+
+        # The user must decrease their capacity
+        if prov.capacity - prov.used > 0:
+            prov.capacity = prov.used
+
+            continue
+
+        # Increase the producer's capacity by however much space wasn't filled
+        # since the last adjustment
+        since_history = list(
+            map(lambda s: s[-1], state_history[last : prev_state["timestep"]])
+        )
+        prov.capacity += max(
+            sum(
+                sum(o.size for o in state["orders"])
+                - sum(prov.capacity for prov in state["providers"].values())
+                for state in since_history
+            )
+            / len(since_history),
+            0,
+        )
+
+    return {"providers": providers}
+
+
+def apply_sector_resize(params, substep, state_history, prev_state, policy_input):
+    return ("providers", policy_input["providers"])
+
+
+def orphan_money_orders(params, substep, state_history, prev_state, policy_input):
+    return (
+        "v_demand",
+        {
+            price: [
+                infos[0],
+                {
+                    buyer: size
+                    for buyer, size in infos[1].items()
+                    if buyer in policy_input["providers"]
+                    and buyer in prev_state["providers"]
+                },
+            ]
+            for price, infos in prev_state["v_demand"].items()
+        },
+    )
