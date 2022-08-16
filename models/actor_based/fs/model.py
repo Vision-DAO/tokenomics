@@ -1,17 +1,18 @@
 from system import (
     update_market_storage_price,
+    register_transfers_prov,
+    register_transfers_user,
+    perform_random_transfers,
     update_market_gas_price,
     update_market_vis_price,
     deliver_user_vis_supply,
-    take_profit,
     calc_market_vis_price,
-    fill_market_vis_demand,
-    fill_market_vis_supply,
     deliver_market_vis_demand,
-    sell_bored_user_funds,
 )
 from actors.challenge import (
     create_challenges,
+    slash_supply,
+    burn_supply,
     spend_challenge_gas,
     answer_challenges,
     register_challenges,
@@ -51,12 +52,10 @@ from actors.provider import (
     Provider,
     fund_users,
     apply_sector_resize,
-    orphan_money_orders,
     update_provider_capacities,
     resize_prov_sectors,
     update_expired_provider_capacities,
     generate_providers,
-    register_demand_increase,
     register_providers,
     change_provider_head,
 )
@@ -89,13 +88,10 @@ initial_state = {
     # Number of MiB of data that was NOT served when it should have been per
     # contract
     "storage_stolen": 0,
-    # Supply vs demand table for dirty calculation of vis price
-    "v_demand": {},
-    "v_supply": {},
     # Total number of VIS slashed
-    "v_slashed": {},
+    "v_slashed": 0,
     # Total number of VIS burned intentionally
-    "v_burned": {},
+    "v_burned": 0,
 }
 
 state_update_blocks = [
@@ -114,10 +110,6 @@ state_update_blocks = [
         },
         "variables": {
             "mkt_vprice": update_market_vis_price,
-            "v_demand": fill_market_vis_demand,
-            "v_supply": fill_market_vis_supply,
-            "providers": deliver_market_vis_demand,
-            "users": deliver_user_vis_supply,
         },
     },
     # Resize any provider sectors that are no longer profitable, if they are
@@ -128,7 +120,6 @@ state_update_blocks = [
         },
         "variables": {
             "providers": apply_sector_resize,
-            "v_demand": orphan_money_orders,
         },
     },
     # Release epoch rewards for all active orders
@@ -147,7 +138,6 @@ state_update_blocks = [
         "variables": {
             "orders": resubmit_orders,
             "users": orphan_bored_users,
-            "v_supply": sell_bored_user_funds,
         },
     },
     # Clear out any orders past their expiration date
@@ -178,7 +168,6 @@ state_update_blocks = [
         "variables": {
             "providers": register_providers,
             "provider_head": change_provider_head,
-            "v_demand": register_demand_increase,
         },
     },
     # Make sure any user without any funds recives a grant of 0.5% of the Vision
@@ -248,13 +237,19 @@ state_update_blocks = [
             "users": reward_enforcers,
             "challenges": kill_challenges,
             "active": remove_slashed_orders,
+            "v_slashed": slash_supply,
+            "v_burned": burn_supply,
         },
     },
-    # Have users sell part of their stake every once in a while
+    # Have users send part of their stake to another random user every once in
+    # a while
     {
-        "policies": {},
+        "policies": {
+            "perform_random_transfers": perform_random_transfers,
+        },
         "variables": {
-            "v_supply": take_profit,
+            "providers": register_transfers_prov,
+            "users": register_transfers_user,
         },
     },
 ]

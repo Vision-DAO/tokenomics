@@ -122,14 +122,21 @@ Presented below are some analyses of the results of the initial run of the Visio
 
       # How often and how much of their portfolio most people usually profit-
       # take
-      "profit_taking_interval": [[100, 25]],
-      "profit_taking_amt_dist": [[1, 5]],
+      "profit_taking_interval": [[50, 15]],
+      "profit_taking_amt_dist": [[1, 10]],
+
+      # How much the price of VIS increases per year
+      "d_vis_price_yearly": [1.1],
+      "d_vis_per_block": [[0, 0.025]],
+
+      # The rate at which Vision users randomly transfer VIS between each other
+      "random_transfer_rate": [5],
   }
 
   model = Model(
       initial_state=initial_state, state_update_blocks=state_update_blocks, params=params
   )
-  simulation = Simulation(model=model, timesteps=500, runs=1)
+  simulation = Simulation(model=model, timesteps=1000, runs=1)
   result = simulation.run()
 
   df = pd.DataFrame(result)
@@ -174,7 +181,7 @@ df[["total_capacity", "used_capacity", "storage_stolen"]].plot(ax=axs[0])
 df[["n_active_orders", "n_unfilled_orders", "n_users", "n_providers", "n_challenges"]].plot(ax=axs[1])
 df[["mkt_sprice", "mkt_fsprice"]].plot(ax=axs[2])
 df[["mkt_vprice"]].plot(ax=axs[3])
-df[["treasury", "providers_balance", "users_balance", "total_supply", "circulating_supply"]].plot(ax=axs[4])
+df[["treasury", "providers_balance", "users_balance", "total_supply", "v_slashed", "v_burned"]].plot(ax=axs[4])
 plt.savefig(fname)
 
 return fname
