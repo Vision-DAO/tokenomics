@@ -195,7 +195,11 @@ def renegotiate_orders(params, substep, state_history, prev_state):
             continue
 
         d_price = (
-            o.price - prev_state["mkt_sprice"] * prev_state["users"][o.buyer].stinginess
+            max(
+                prev_state["mkt_sprice"] * prev_state["users"][o.buyer].stinginess,
+                o.price * prev_state["users"][o.buyer].stinginess,
+            )
+            - o.price
         )
 
         # No orders exist, so we can get away with paying literally anything more than nothing

@@ -61,7 +61,7 @@ from actors.provider import (
 )
 
 # Start the system off with just one user, who is providing storage to no one
-treasury = Provider(100, 51200, 0, 0.0, 1024, 0, 0, 0, 1024, 0.01, 0)
+treasury = Provider(10000, 51200, 0, 0.0, 1024, 0, 0, 0, 1024, 0.01, 0)
 initial_state = {
     # Vision DAO provides 100 GiB of storage, at zero fee
     "treasury": 0,

@@ -130,10 +130,8 @@ def answer_challenges(params, substep, state_history, prev_state):
             > providers[order.provider].risk_tolerance
             * providers[order.provider].balance
         ):
-            print("cheating")
             # We lost this time
             if order.id in prev_state["challenges"]:
-                print("SLASHED", reaped)
                 challenge = prev_state["challenges"][order.id]
 
                 # Distribute according to params, and google doc

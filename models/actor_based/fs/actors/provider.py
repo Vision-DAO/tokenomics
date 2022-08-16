@@ -57,7 +57,8 @@ def fund_users(params, substep, state_history, prev_state):
     grant_portion = params["grant_portion"] if "grant_portion" in params else 20
     grants_available = min(
         params["grant_max"] if "grant_max" in params else 5,
-        grant_portion - (100 - prev_state["providers"][prev_state["treasury"]].balance),
+        grant_portion
+        - (10000 - prev_state["providers"][prev_state["treasury"]].balance),
     )
 
     for u in prev_state["users"].values():
@@ -123,7 +124,7 @@ def generate_providers(params, substep, state_history, prev_state):
 
     prev_provs[prev_head] = Provider(
         0,
-        beta(alpha_sinit_dist, beta_sinit_dist) * 20480,
+        beta(alpha_sinit_dist, beta_sinit_dist) * 122070,
         0,
         normal(100, params.get("storage_price_discount_dist", 5)) / 100,
         beta(*params.get("provider_responsiveness", [10, 5])) * 100,
