@@ -18,11 +18,11 @@ The file system model encodes the staking, slashing, and market behaviors of Vis
 
 The file system model makes several assumptions about external factors that influence the decision-making of its users. These include:
 
-| Grants per Block (VIS)  | The rate at which Vision DAO doles out grants of VIS to users.                                                                              |
-| Grant portion (%)       | The percentage of its balance that Vision DAO is willing to give out as grants.                                                             |
-| Average contract length | How long users' storage contracts with Vision providres tend to be. A normal distribution with values specified in the [[https://github.com/vision-dao/tokenomics/blob/main/analysis.org][analysis file]].       |
-| User Spawn Rate         | How often new users join the Vision network, described relative to the number of current users. (i.e., how many users does 1 user attract?) |
-| Idea Spawn Rate         | How often Vision users come up with Ideas that they want serviced via the file storage network.                                             |
+- Grants per Block (VIS): The rate at which Vision DAO doles out grants of VIS to users.
+- Grant portion (%): The percentage of its balance that Vision DAO is willing to give out as grants.
+- Average contract length: How long users' storage contracts with Vision providres tend to be. A normal distribution with values specified in the [[https://github.com/vision-dao/tokenomics/blob/main/analysis.org][analysis file]].
+- User Spawn Rate: How often new users join the Vision network, described relative to the number of current users. (i.e., how many users does 1 user attract?)
+- Idea Spawn Rate: How often Vision users come up with Ideas that they want serviced via the file storage network.
 
 And several others described more extensively in the source code repository. Most importantly, the experiment assumes that the price of VIS oscillates completely randomly, and that only one initial user occupies the network: the Vision DAO itself. It also assumes that Vision DAO has an initial amount of storage space that it can provide unconditionally to its first users.
 
@@ -32,10 +32,10 @@ And several others described more extensively in the source code repository. Mos
 
 In experimentation, we we found that the single largest distinguishing factor for ensuring that users' data were being stored during contracts they took on was the *collateralization rate*.
 The *collateralization rate* is defined by the Vision proof of storage protocol, and sets a minimum percentage (\(\rho\)) of the market value (\(\mu\)) of a storage contract that a provider must stake to accept it.
-
+#+attr_latex: :width \textwidth
 [[./assets/fs/no_collateral.png]]
 Displayed above where \(\rho = 0\), without any measures to ensure that users' files are intact, file storage providers are free to accept as many orders as they want, without paying for the underlying storage space. We consider this a form of theft, measured by, "storage stolen." Without these measures, virtuall all storage space is stolen.
-
+#+attr_latex: :width \textwidth
 [[./assets/fs/all_collateral.png]]
 
 Comparatively, where \(\rho = 1\) as displayed above, meaning 100% of the market value of a contract must be staked by the provider, storage stolen is virtually zero.
