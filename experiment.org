@@ -11,11 +11,14 @@ The implementation of this experiment is available in full [[https://github.com/
 
 It should be noted that the absolute numbers presented in the results of running this model are for illustrative purposes only, and are only indicative of general trends, at best.
 
-** File System Model
+** Summary
+Repeated experimentation conforming to the described methodology suggests that Vision's file storage and voting security mechanisms reliably deter sybil attacks, and theft of paid-for storage space. In experiments conducted to assess the efficacy of Vision's proof of storage mechanism with collateral rates at 100%, storage theft rates were close to zero. In experiments conducted to assess the efficacy of Vision's voting sybil attack prevention system, sybil attackers were found guilty and slashed at a rate approaching 100% as the number of users grew.
+Vision's tokenomics mechanisms were found to achieve a high level of security while inhibiting normal usage to a minimal degree. In this regard, it appeared that the ability of users to acquire storage from sellers quickly as correlated with higher levels of liquidity in currency markets for VIS, while the rate of false-positives due to the sybil resistance mechanism decreased with scale.
+
+* File System Model
 
 The file system model encodes the staking, slashing, and market behaviors of Vision's file storage mechanism. It measures "efficiency" through three main metrics: *resistance*, *resilience*, and *reactivity*. *Resistance* describes the ability of the system to withstand and discourage attacks by malicious actors, and is measured by the rate of "stealing," or agreeing to serve a file for a period of time, and purposely or unintentionally (e.g., due to hard drive failure) neglecting to do so. *Resilience* describes the ability of the system to retain users, and grow in adverse conditions (e.g., where a high number of actors are attempting to "game" the system, or when very little storage is to go around due to physical constraints). *Reactivity* describes the ability of the system to scale with increased demand, in such a way that the most users are fulfilled at the lowest possible cost, and is measured through demanded capacity vs provided capacity.
-
-*** Methodology
+** Methodology
 
 The file system model makes several assumptions about external factors that influence the decision-making of its users. These include:
 
@@ -27,9 +30,9 @@ The file system model makes several assumptions about external factors that infl
 
 And several others described more extensively in the source code repository. Most importantly, the experiment assumes that the price of VIS oscillates completely randomly and that only one initial user occupies the network: the Vision DAO itself. It also assumes that Vision DAO has an initial amount of storage space that it can provide unconditionally to its first users.
 
-*** Findings
+** Findings
 
-****  Resistance
+***  Resistance
 
 In experimentation, we found that the single largest distinguishing factor for ensuring that users' data were being stored during contracts they took on was the *collateralization rate*.
 The *collateralization rate* is defined by the Vision proof of storage protocol, and sets a minimum percentage (\(\rho\)) of the market value (\(\mu\)) of a storage contract that a provider must stake to accept it.
@@ -41,31 +44,31 @@ Displayed above where \(\rho = 0\), without any measures to ensure that users' f
 
 Comparatively, where \(\rho = 1\) as displayed above, meaning 100% of the market value of a contract must be staked by the provider, storage stolen is virtually zero.
 
-**** Resilience and Reactivity
+*** Resilience and Reactivity
 
 Although it presents an effective mechanism for deterring attacks, Vision's tokenomics proof of storage model does little to influence the rate at which providers of storage enter the network.
 Rather, in our testing, it appears to be the case that the responsiveness of the supply of storage on Vision due to an increase in demand (e.g., due to new users) is explained primarily by external factors.
 Namely, an increase in the supply of storage on Vision was correlated with an increase in the efficiency of currency markets supplying VIS itself to outside parties hoping to provide storage on Vision.
 
-** Voting Model
+* Voting Model
 
 Vision's voting features utilize the Enforcer-Jury system as a protocol that aims to provide security against Sybil attacks. The voting model tracks metrics regarding Vision's intra-Idea governance. The main metric categories are *utility* and *accuracy*. *Utility* is the ability of the Enforcer-Jury system to provide value to Vision users, and in this case whether or not users can cast votes in accordance to themselves; this is measured by the number of tokens voted towards Idea proposals per user. *Accuracy* describes the correctness of the Enforcer-Jury system and is measured by the rates of false positives and negatives when detecting a guilty party. Combining these two categories, understanding the *utility* and *accuracy* of the Enforcer-Jury system and thus voting features allows us to answer key performance questions such as "Is Vision governance legitimate?" And "Does Vision allow DAOs to safely grow?"
 
-*** Methodology
+** Methodology
 
 The voting model makes several assumptions about external factors that influence the decision-making of its users. These include:
 
-| User Proclivity to Vote | The chances for a user to vote under specific circumstances                          |
-| User Spawn Rate         | How often new users join the Vision network relative to idea and proposal creation   |
-| Idea Spawn Rate         | How often Vision users come up with Ideas that they govern via proposals             |
-| Mean User Fraud Rate    | Mean of the normal distribution describing a user's proclivity to commit voter fraud |
-| Enforcer Information    | The amount the /actual/ voting event's legitimacy affects an enforcer's claim        |
+- User Proclivity to Vote: The chances for a user to vote under specific circumstances
+- User Spawn Rate: How often new users join the Vision network relative to idea and proposal creation
+- Idea Spawn Rate: How often Vision users come up with Ideas that they govern via proposals
+- Mean User Fraud Rate: Mean of the normal distribution describing a user's proclivity to commit voter fraud
+- Enforcer Information: The amount the /actual/ voting event's legitimacy affects an enforcer's claim
 
 This is not an exhaustive list of all the parameters and assumptions used in the voting model. A more comprehensive list can be found in the voting model's [[https://github.com/Vision-DAO/tokenomics/blob/main/models/actor_based/voting/analysis.org][analysis file]].
 
-*** Results
+** Results
 
-**** Utility
+*** Utility
 
 We found that the amount of tokens users are willing to vote on proposals with is exponential with the amount of time that passes. It is also seen that the amount of proposals passed increases proportionally with the total proposals created, but at a lower rate than the amount of proposals that do not get passed or timed out.
 
@@ -73,7 +76,7 @@ We found that the amount of tokens users are willing to vote on proposals with i
 
 The above figure displays the exponential nature of the amount of tokens voted per user, showing a strong desire for users to participate in proposals as they acquire the necessary tokens. It is important to note the relatively low rate of votes passing versus timing out (and thus not getting passed). Since we see a strong level of voting participation with the amounts of tokens spent, this is most likely due to a higher rate of proposal rejection rather than a lack of utility in Vision's voting mechanisms.
 
-**** Accuracy
+*** Accuracy
 
 Experiments showed an increase of accuracy as time passes regardless of the *information* enforcers (\(I_{enforcer}\)) or jury members (\(I_{jury}\)) have. *Information* is how much the real truth value of a voting event's legitimacy an enforcer or jury member takes into account for their claims.
 
