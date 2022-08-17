@@ -1,10 +1,13 @@
-#+NAME: Vision Tokenomics Simulation
+#+NAME: Vision DAO Tokenomics Simulation
 #+DATE: 08/15/2022
 #+AUTHOR: Dowland Aiello, Lawrence Qupty
 
-* Simulating Vision Tokenomics for Determining Efficiency
+* Simulating Vision DAO Tokenomics for Determining Efficiency
 
-Described below is an experiment conducted through a dynamical systems model using the radCAD software. It encodes the behaviors described in the [[https://docs.google.com/document/d/1E_eEqxaBaR9nsZocqP9tPOKYcGYXYcRplaZ0z4U9crY/edit?usp=sharing][Vision tokenomics paper]]. The main goal of the experiment is to theoretically model the efficiency of security measures that arise from Vision's tokenomics, namely the proof of storage and proof of identity uniqueness mechanisms.
+Described below is an experiment conducted through a dynamical systems model[fn:1] using the radCAD software. It encodes the behaviors described in the [[https://docs.google.com/document/d/1E_eEqxaBaR9nsZocqP9tPOKYcGYXYcRplaZ0z4U9crY/edit?usp=sharing][Vision tokenomics paper]]. The main goal of the experiment is to theoretically model the efficiency of security measures that arise from Vision's tokenomics, namely the proof of storage and proof of identity uniqueness mechanisms.
+
+[fn:1] A dynamical system is a system in which a function describes the time dependence of a point in an ambient space. Examples include the mathematical models that describe the swinging of a clock pendulum, the flow of water in a pipe, the random motion of particles in the air, and the number of fish each springtime in a lake.
+
 
 This experiment is conducted in two parts, each measuring efficiency through different metrics of these two security mechanisms, respectively.
 The implementation of this experiment is available in full [[https://github.com/vision-dao/tokenomics][here]].
@@ -12,12 +15,15 @@ The implementation of this experiment is available in full [[https://github.com/
 It should be noted that the absolute numbers presented in the results of running this model are for illustrative purposes only, and are only indicative of general trends, at best.
 
 ** Summary
-Repeated experimentation conforming to the described methodology suggests that Vision's file storage and voting security mechanisms reliably deter sybil attacks, and theft of paid-for storage space. In experiments conducted to assess the efficacy of Vision's proof of storage mechanism with collateral rates at 100%, storage theft rates were close to zero. In experiments conducted to assess the efficacy of Vision's voting sybil attack prevention system, sybil attackers were found guilty and slashed at a rate approaching 100% as the number of users grew.
+Repeated experimentation conforming to the described methodology suggests that Vision's file storage and voting security mechanisms reliably deter sybil attacks[fn:2], and theft of paid-for storage space. In experiments conducted to assess the efficacy of Vision's proof of storage mechanism with collateral rates at 100%, storage theft rates were close to zero (0% - 0.5%). In experiments conducted to assess the efficacy of Vision's voting sybil attack prevention system, sybil attackers were found guilty and slashed at a rate approaching 100% as the number of users grew.
 Vision's tokenomics mechanisms were found to achieve a high level of security while inhibiting normal usage to a minimal degree. In this regard, it appeared that the ability of users to acquire storage from sellers quickly was correlated with higher levels of liquidity in currency markets for VIS, while the rate of false positives due to the sybil resistance mechanism decreased with scale.
+
+[fn:2] A sybil attack constitutes a single Vision user attempting to present themselves through many different identities. Vision's sybil deterrence mechanism focuses on mitigating situations where this attack allows one user to have a greater weight than they would otherwise in quadratic voting elections.
+
 
 * File System Model
 
-The file system model encodes the staking, slashing, and market behaviors of Vision's file storage mechanism. It measures "efficiency" through three main metrics: *resistance*, *resilience*, and *reactivity*. *Resistance* describes the ability of the system to withstand and discourage attacks by malicious actors, and is measured by the rate of "stealing," or agreeing to serve a file for a period of time, and purposely or unintentionally (e.g., due to hard drive failure) neglecting to do so. *Resilience* describes the ability of the system to retain users, and grow in adverse conditions (e.g., where a high number of actors are attempting to "game" the system, or when very little storage is to go around due to physical constraints). *Reactivity* describes the ability of the system to scale with increased demand, in such a way that the most users are fulfilled at the lowest possible cost, and is measured through demanded capacity vs provided capacity.
+The file system model encodes the staking, slashing, and market behaviors of Vision's file storage mechanism. It measures "efficiency" through three main metrics: *resistance*, *resilience*, and *reactivity*. *Resistance* describes the ability of the system to withstand and discourage attacks by malicious actors, and is measured by the rate of "stealing," or agreeing to serve a file for a period of time, and purposely or unintentionally (e.g., due to hard drive failure) neglecting to do so. *Resilience* describes the ability of the system to retain users, and grow in adverse conditions (e.g., where a high number of actors are attempting to "game" the system, or when very little storage is available to go around due to physical constraints). *Reactivity* describes the ability of the system to scale with increased demand, in such a way that the most users are fulfilled at the lowest possible cost, and is measured through demanded capacity vs provided capacity.
 ** Methodology
 
 The file system model makes several assumptions about external factors that influence the decision-making of its users. These include:
@@ -28,7 +34,7 @@ The file system model makes several assumptions about external factors that infl
 - User Spawn Rate: How often new users join the Vision network, described relative to the number of current users. (i.e., how many users does 1 user attract?)
 - Idea Spawn Rate: How often Vision users come up with Ideas that they want serviced via the file storage network.
 
-And several others described more extensively in the source code repository. Most importantly, the experiment assumes that the price of VIS oscillates completely randomly and that only one initial user occupies the network: the Vision DAO itself. It also assumes that Vision DAO has an initial amount of storage space that it can provide unconditionally to its first users.
+Several other model parameters are described more extensively in the source code repository, available upon request. Most importantly, the experiment assumes that the price of VIS oscillates completely randomly and that only one initial user occupies the network: the Vision DAO itself. It also assumes that Vision DAO has an initial amount of storage space that it can provide unconditionally to its first users.
 
 ** Findings
 
