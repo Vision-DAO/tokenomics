@@ -57,7 +57,8 @@ def fund_users(params, substep, state_history, prev_state):
     grant_portion = params["grant_portion"] if "grant_portion" in params else 20
     grants_available = min(
         params["grant_max"] if "grant_max" in params else 5,
-        grant_portion - (100 - prev_state["providers"][prev_state["treasury"]].balance),
+        grant_portion
+        - (10000 - prev_state["providers"][prev_state["treasury"]].balance),
     )
 
     for u in prev_state["users"].values():
@@ -113,7 +114,6 @@ def generate_providers(params, substep, state_history, prev_state):
     parameters.
     """
 
-    v_demand = prev_state["v_demand"]
     prev_head = prev_state["provider_head"]
     prev_provs = prev_state["providers"]
 
@@ -124,7 +124,7 @@ def generate_providers(params, substep, state_history, prev_state):
 
     prev_provs[prev_head] = Provider(
         0,
-        beta(alpha_sinit_dist, beta_sinit_dist) * 20480,
+        beta(alpha_sinit_dist, beta_sinit_dist) * 122070,
         0,
         normal(100, params.get("storage_price_discount_dist", 5)) / 100,
         beta(*params.get("provider_responsiveness", [10, 5])) * 100,
@@ -136,37 +136,10 @@ def generate_providers(params, substep, state_history, prev_state):
         prev_head,
     )
 
-    # Get some tokens on the market for doing some storage stuff
-    acceptable_price = round(
-        prev_state["mkt_vprice"] * (prev_provs[prev_head].risk_tolerance + 1), 2
-    )
-
-    if acceptable_price <= 0:
-        acceptable_price = 0.00001
-
-    if acceptable_price not in v_demand:
-        v_demand[acceptable_price] = [0, {}]
-
-    # Find out how many tokens we would need at this price to fulfill our storage
-    calc_ctx = {
-        "mkt_fsprice": prev_state["mkt_fsprice"],
-        "mkt_vprice": acceptable_price,
-    }
-    my_demand = (
-        prev_provs[prev_head].min_fee(params, calc_ctx) * prev_provs[prev_head].capacity
-    )
-    v_demand[acceptable_price][0] += my_demand
-    v_demand[acceptable_price][1][prev_head] = my_demand
-
     return {
         "providers": prev_provs,
         "provider_head": prev_head + 1,
-        "v_demand": v_demand,
     }
-
-
-def register_demand_increase(params, substep, state_history, prev_state, policy_input):
-    return ("v_demand", prev_state["v_demand"])
 
 
 def register_providers(params, substep, state_history, prev_state, policy_input):
@@ -225,21 +198,3 @@ def resize_prov_sectors(params, substep, state_history, prev_state):
 
 def apply_sector_resize(params, substep, state_history, prev_state, policy_input):
     return ("providers", policy_input["providers"])
-
-
-def orphan_money_orders(params, substep, state_history, prev_state, policy_input):
-    return (
-        "v_demand",
-        {
-            price: [
-                infos[0],
-                {
-                    buyer: size
-                    for buyer, size in infos[1].items()
-                    if buyer in policy_input["providers"]
-                    and buyer in prev_state["providers"]
-                },
-            ]
-            for price, infos in prev_state["v_demand"].items()
-        },
-    )

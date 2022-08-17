@@ -193,8 +193,8 @@ def orphan_bored_users(params, substep, state_history, prev_state, policy_input)
         canceled = policy_input["user_counts"].get(u.id, 0)
         u.unfilled_orders += canceled
 
-        spent = policy_input["user_balances"].get(u.id, 0)
-        u.balance -= spent
+        # spent = policy_input["user_balances"].get(u.id, 0)
+        # u.balance -= spent
 
         if u.all_orders == 0 or u.unfilled_orders / u.all_orders <= u.ux_tolerance:
             users[u.id] = u

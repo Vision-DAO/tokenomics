@@ -34,29 +34,29 @@ Presented below are some analyses of the results of the initial run of the Visio
       "avg_contract_epochs": [[100, 20]],
 
       # The number of timesteps it takes to make a new user
-      "new_user_interval": [60],
+      "new_user_interval": [30],
 
       # How often the user has a new idea that they need storing
-      "new_idea_interval": [30],
+      "new_idea_interval": [90],
 
       # How long (on average) it takes users to want to resubmit their order
       # at a higher price
-      "order_resubmit_interval": [2],
+      "order_resubmit_interval": [1],
 
       # How long it takes the user to leave after not getting an order filled
-      "order_timeout_interval": [5],
+      "order_timeout_interval": [20],
 
       # How many timed-out (or unfilled in general) orders it takes for a user
       # to just leave. Expressed as a beta distribution (most will leave after
       # just 1)
-      "user_timeout_dist": [[2, 15]],
+      "user_timeout_dist": [[2, 7]],
 
       # How much above or below the market price the user tends to place their
       # asks at
-      "user_stinginess_dist": [(0, 5)],
+      "user_stinginess_dist": [(0, 10)],
 
       # How often providers spawn
-      "new_provider_interval": [60],
+      "new_provider_interval": [45],
 
       # How long it takes for the provider to respond to changes in their
       # profitability: how many timesteps after having a sector unused, they
@@ -76,13 +76,13 @@ Presented below are some analyses of the results of the initial run of the Visio
       "storage_price_discount_dist": [25],
 
       # The starting price of SSD storage in USD / MiB
-      "base_storage_price": [0.000208666693],
+      "base_storage_price": [0.00208666693],
 
       # The number of timesteps in a year's time
       "ticks_per_year": [512],
 
       # The % of a buyer's bid that a provider must put up to accept the bid
-      "collateralization_rate": [1.0],
+      "collateralization_rate": [1],
 
       # The initial chance users' equipment have of malfunctioning, causing
       # a slashing event
@@ -122,14 +122,22 @@ Presented below are some analyses of the results of the initial run of the Visio
 
       # How often and how much of their portfolio most people usually profit-
       # take
-      "profit_taking_interval": [[100, 25]],
-      "profit_taking_amt_dist": [[1, 5]],
+      "profit_taking_interval": [[10, 2.5]],
+      "profit_taking_amt_dist": [[5, 6]],
+
+      # How much the price of VIS increases per year
+      "d_vis_price_yearly": [1.1],
+      "d_vis_per_block": [[0, 0.025]],
+
+      # The rate at which Vision users randomly transfer VIS between each other
+      "random_transfer_rate": [5],
+      "random_transfer_population": [[1, 7]],
   }
 
   model = Model(
       initial_state=initial_state, state_update_blocks=state_update_blocks, params=params
   )
-  simulation = Simulation(model=model, timesteps=500, runs=1)
+  simulation = Simulation(model=model, timesteps=1000, runs=1)
   result = simulation.run()
 
   df = pd.DataFrame(result)
@@ -164,17 +172,17 @@ df["n_active_orders"] = df["active"].str.len()
 df["n_challenges"] = df["challenges"].str.len()
 df["total_capacity"] = df["providers"].apply(lambda providers: sum(prov.capacity for prov in providers.values()))
 df["used_capacity"] = df["providers"].apply(lambda providers: sum(prov.used for prov in providers.values()))
-df["total_supply"] = 100
+df["total_supply"] = 10000
 df["circulating_supply"] = df.apply(lambda row: sum(prov.balance for prov in row["providers"].values()) + sum(user.balance for user in row["users"].values()), axis=1)
 fname = "output/all.png"
-fig, axs = plt.subplots(5)
+
+fig, axs = plt.subplots(4, figsize=(15, 15))
 
 #df[["treasury", "n_users", "mkt_sprice", "n_providers", "n_unfilled_orders", "n_active_orders"]].plot()
 df[["total_capacity", "used_capacity", "storage_stolen"]].plot(ax=axs[0])
 df[["n_active_orders", "n_unfilled_orders", "n_users", "n_providers", "n_challenges"]].plot(ax=axs[1])
-df[["mkt_sprice", "mkt_fsprice"]].plot(ax=axs[2])
-df[["mkt_vprice"]].plot(ax=axs[3])
-df[["treasury", "providers_balance", "users_balance", "total_supply", "circulating_supply"]].plot(ax=axs[4])
+df[["mkt_vprice"]].plot(ax=axs[2])
+df[["treasury", "providers_balance", "users_balance", "total_supply"]].plot(ax=axs[3])
 plt.savefig(fname)
 
 return fname

@@ -112,6 +112,8 @@ def answer_challenges(params, substep, state_history, prev_state):
     users = prev_state["users"]
     challenges = prev_state["challenges"]
     active = prev_state["active"]
+    slashed = prev_state["v_slashed"]
+    burned = prev_state["v_burned"]
 
     for i, order in enumerate(prev_state["active"]):
         epoch_size = 1 / (order.next_epoch - order.epoch_created_at)
@@ -122,18 +124,9 @@ def answer_challenges(params, substep, state_history, prev_state):
         )
         reaped = order.size * order.price
 
-        # No brainer not to cheat. No challenges remaining
-        if order.challenges_left == 0 and order.id not in prev_state["challenges"]:
-            storage_stolen += order.size
-
-            # The provider pays no cost of goods here
-            providers[order.provider].forges_won += order_cost
-
-            continue
-
         # Cheat if it has worked so far, within our limits
         if (
-            providers[order.provider].forges_won / providers[order.provider].balance
+            providers[order.provider].forges_won
             > providers[order.provider].risk_tolerance
             * providers[order.provider].balance
         ):
@@ -143,12 +136,21 @@ def answer_challenges(params, substep, state_history, prev_state):
 
                 # Distribute according to params, and google doc
                 # (burning implicit when initial stake cast)
-                print(users[challenge.enforcer].challenges_won)
                 users[challenge.enforcer].challenges_won += reaped * params.get(
                     "slashing_dist_enf", 0.5
                 )
                 providers[prev_state["treasury"]].balance += params.get(
                     "slashing_dist_dao", 0.25
+                )
+
+                # Record statistics
+                slashed += reaped
+                burned += reaped * (
+                    1
+                    - (
+                        params.get("slashing_dist_enf", 0.5)
+                        + params.get("slashing_dist_dao", 0.25)
+                    )
                 )
 
                 # Return remaining fee paid
@@ -180,6 +182,8 @@ def answer_challenges(params, substep, state_history, prev_state):
         "users": users,
         "challenges": challenges,
         "active": list(filter(lambda x: x is not None, active)),
+        "v_slashed": slashed,
+        "v_burned": burned,
     }
 
 
@@ -201,3 +205,11 @@ def kill_challenges(params, substep, state_history, prev_state, policy_input):
 
 def remove_slashed_orders(params, substep, state_history, prev_state, policy_input):
     return ("active", policy_input["active"])
+
+
+def slash_supply(params, substep, state_history, prev_state, policy_input):
+    return ("v_slashed", policy_input["v_slashed"])
+
+
+def burn_supply(params, substep, state_history, prev_state, policy_input):
+    return ("v_burned", policy_input["v_burned"])
