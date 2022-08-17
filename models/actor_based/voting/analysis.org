@@ -56,7 +56,7 @@ This document generates and presents analyses of the results from the inital Vis
       initial_state=initial_state, state_update_blocks=state_update_blocks, params=params
   )
 
-  simulation = Simulation(model=model, timesteps=300, runs=1)
+  simulation = Simulation(model=model, timesteps=400, runs=1)
   result = simulation.run()
 
   df = pd.DataFrame(result)
@@ -145,11 +145,12 @@ Parse and graph data relevant to the results of the Enforcer-Jury Model
   df[["tokens_voted_per_user", "n_users"]].plot(ax=axs[0])
   axs[0].legend(["Tokens voted per user", "Number of users"])
 
-  df[["falsely_innocent_ratio", "falsely_guilty_ratio"]].plot(ax=axs[1])
-  axs[1].legend(["Falsely innocent ratio", "Falesly guilty ratio"])
 
-  df[["proposals_passed", "proposals_timed_out", "n_proposals"]].plot(ax=axs[2])
-  axs[2].legend(["Proposals passed", "Proposals timed out", "Total proposals created"])
+  df[["proposals_passed", "proposals_timed_out", "n_proposals"]].plot(ax=axs[1])
+  axs[1].legend(["Proposals passed", "Proposals timed out", "Total proposals created"])
+
+  df[["falsely_innocent_ratio", "falsely_guilty_ratio"]].plot(ax=axs[2])
+  axs[2].legend(["Falsely innocent ratio", "Falesly guilty ratio"])
 
   fname = "output/all.png"
   plt.savefig(fname)
