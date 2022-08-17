@@ -13,7 +13,7 @@ It should be noted that the absolute numbers presented in the results of running
 
 ** Summary
 Repeated experimentation conforming to the described methodology suggests that Vision's file storage and voting security mechanisms reliably deter sybil attacks, and theft of paid-for storage space. In experiments conducted to assess the efficacy of Vision's proof of storage mechanism with collateral rates at 100%, storage theft rates were close to zero. In experiments conducted to assess the efficacy of Vision's voting sybil attack prevention system, sybil attackers were found guilty and slashed at a rate approaching 100% as the number of users grew.
-Vision's tokenomics mechanisms were found to achieve a high level of security while inhibiting normal usage to a minimal degree. In this regard, it appeared that the ability of users to acquire storage from sellers quickly as correlated with higher levels of liquidity in currency markets for VIS, while the rate of false-positives due to the sybil resistance mechanism decreased with scale.
+Vision's tokenomics mechanisms were found to achieve a high level of security while inhibiting normal usage to a minimal degree. In this regard, it appeared that the ability of users to acquire storage from sellers quickly was correlated with higher levels of liquidity in currency markets for VIS, while the rate of false positives due to the sybil resistance mechanism decreased with scale.
 
 * File System Model
 
