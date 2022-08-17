@@ -15,10 +15,10 @@ The implementation of this experiment is available in full [[https://github.com/
 It should be noted that the absolute numbers presented in the results of running this model are for illustrative purposes only, and are only indicative of general trends, at best.
 
 ** Summary
-Repeated experimentation conforming to the described methodology suggests that Vision's file storage and voting security mechanisms reliably deter sybil attacks[fn:2], and theft of paid-for storage space. In experiments conducted to assess the efficacy of Vision's proof of storage mechanism with collateral rates at 100%, storage theft rates were close to zero (0% - 0.5%). In experiments conducted to assess the efficacy of Vision's voting sybil attack prevention system, sybil attackers were found guilty and slashed at a rate approaching 100% as the number of users grew.
-Vision's tokenomics mechanisms were found to achieve a high level of security while inhibiting normal usage to a minimal degree. In this regard, it appeared that the ability of users to acquire storage from sellers quickly was correlated with higher levels of liquidity in currency markets for VIS, while the rate of false positives due to the sybil resistance mechanism decreased with scale.
+Repeated experimentation conforming to the described methodology suggests that Vision's file storage and voting security mechanisms reliably deter Sybil attacks[fn:2], and theft of paid-for storage space. In experiments conducted to assess the efficacy of Vision's proof of storage mechanism with collateral rates at 100%, storage theft rates were close to zero (0% - 0.5%). In experiments conducted to assess the efficacy of Vision's voting Sybil attack prevention system, Sybil attackers were found guilty and slashed at a rate approaching 100% as the number of users grew.
+Vision's tokenomics mechanisms were found to achieve a high level of security while inhibiting normal usage to a minimal degree. In this regard, it appeared that the ability of users to acquire storage from sellers quickly was correlated with higher levels of liquidity in currency markets for VIS, while the rate of false positives due to the Sybil resistance mechanism decreased with scale.
 
-[fn:2] A sybil attack constitutes a single Vision user attempting to present themselves through many different identities. Vision's sybil deterrence mechanism focuses on mitigating situations where this attack allows one user to have a greater weight than they would otherwise in quadratic voting elections.
+[fn:2] A Sybil attack constitutes a single Vision user attempting to present themselves through many different identities. Vision's Sybil deterrence mechanism focuses on mitigating situations where this attack allows one user to have a greater weight than they would otherwise in quadratic voting elections.
 
 
 * File System Model
@@ -42,19 +42,25 @@ Several other model parameters are described more extensively in the source code
 
 In experimentation, we found that the single largest distinguishing factor for ensuring that users' data were being stored during contracts they took on was the *collateralization rate*.
 The *collateralization rate* is defined by the Vision proof of storage protocol, and sets a minimum percentage (\(\rho\)) of the market value (\(\mu\)) of a storage contract that a provider must stake to accept it.
-#+attr_latex: :width \textwidth
-[[./assets/fs/no_collateral.png]]
-Displayed above where \(\rho = 0\), without any measures to ensure that users' files are intact, file storage providers are free to accept as many orders as they want, without paying for the underlying storage space. We consider this a form of theft, measured by, "storage stolen." Without these measures, virtually all storage space is stolen.
-#+attr_latex: :width \textwidth
-[[./assets/fs/all_collateral.png]]
 
+#+BEGIN_center
+#+attr_latex: :width 0.45\textwidth :center
+[[./assets/fs/no_collateral.png]]
+#+attr_latex: :width 0.45\textwidth :center
+[[./assets/fs/all_collateral.png]]
+#+END_center
+#+caption: Left, \(\rho = 0\), right \(\rho = 1\)
+#+attr_latex: :height 0.0001in
+[[./assets/Empty.png]]
+
+Displayed above where \(\rho = 0\), without any measures to ensure that users' files are intact, file storage providers are free to accept as many orders as they want, without paying for the underlying storage space. We consider this a form of theft, measured by, "storage stolen." Without these measures, virtually all storage space is stolen.
 Comparatively, where \(\rho = 1\) as displayed above, meaning 100% of the market value of a contract must be staked by the provider, storage stolen is virtually zero.
 
 *** Resilience and Reactivity
 
 Although it presents an effective mechanism for deterring attacks, Vision's tokenomics proof of storage model does little to influence the rate at which providers of storage enter the network.
-Rather, in our testing, it appears to be the case that the responsiveness of the supply of storage on Vision due to an increase in demand (e.g., due to new users) is explained primarily by external factors.
-Namely, an increase in the supply of storage on Vision was correlated with an increase in the efficiency of currency markets supplying VIS itself to outside parties hoping to provide storage on Vision.
+Rather, in our testing, it appears to be the case that the reactivity of the supply of storage on Vision due to an increase in demand (e.g., due to new users) is explained primarily by external factors.
+Namely, an increase in the supply of storage on Vision was correlated with an increase in the efficiency of currency markets supplying VIS itself to outside parties hoping to provide storage on Vision. The dynamics of currency markets, and cryptocurrency markets in particular, are highly variable, and as such, data incorporating these factors are not yet available.
 
 * Voting Model
 
@@ -76,7 +82,7 @@ This is not an exhaustive list of all the parameters and assumptions used in the
 
 *** Utility
 
-We found that the amount of tokens users are willing to vote on proposals with is exponential with the amount of time that passes. It is also seen that the number of proposals passed increases proportionally with the total proposals created, but at a lower rate than the number of proposals that do not get passed or timed out.
+We found that willingness of users to vote on proposals increases exponentially with the passage of time, likely due to the increase in tokens acquired over time. It is also seen that the number of proposals passed increases proportionally to the total number created, however, the rate of proposals passed is lower than those that are not passed or are timed out.
 
 [[file:assets/voting/utility.png]]
 
@@ -84,8 +90,8 @@ The above figure displays the exponential nature of the number of tokens voted p
 
 *** Accuracy
 
-Experiments showed an increase of accuracy as time passes regardless of the *information* enforcers (\(I_{enforcer}\)) or jury members (\(I_{jury}\)) have. *Information* is how much the real truth value of a voting event's legitimacy an enforcer or jury member takes into account for their claims.
+Experiments showed that accuracy increased over time, regardless of the *information* maintained by enforcers (\(I_{enforcer}\)) or jury members (\(I_{jury}\)).
 
 [[file:assets/voting/accuracy.png]]
 
-Above is shown the falsely innocent ratio (the ratio of innocent-verdict voting events when the voter was guilty to total voting events) and the falsely guilty ratio (a similar ratio using the amount of false guilty verdicts) when \(I_{enforcer} = 0.6\) and \(I_{jury} = 0.3\). The figure illustrates the steady decrease in these ratios, reflecting an increase in the accuracy of the voting system.
+The ratio of falsely innocent (the ratio of innocent-verdict voting events when the voter was guilty to total voting events) and falsely guilty (a similar ratio using the amount of false guilty verdicts) decreases over time, as shown above, when \(I_{enforcer} = 0.6\) and \(I_{jury} = 0.3\). The figure illustrates the steady decrease in these ratios, reflecting an increase in the accuracy of the voting system.
