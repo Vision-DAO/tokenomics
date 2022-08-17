@@ -1,12 +1,13 @@
 #+NAME: Vision DAO Tokenomics Simulation
 #+DATE: 08/15/2022
 #+AUTHOR: Dowland Aiello, Lawrence Qupty
+#+LATEX_HEADER: \usepackage[margin=1in]{geometry}
 
 * Simulating Vision DAO Tokenomics for Determining Efficiency
 
 Described below is an experiment conducted through a dynamical systems model[fn:1] using the radCAD software. It encodes the behaviors described in the [[https://docs.google.com/document/d/1E_eEqxaBaR9nsZocqP9tPOKYcGYXYcRplaZ0z4U9crY/edit?usp=sharing][Vision tokenomics paper]]. The main goal of the experiment is to theoretically model the efficiency of security measures that arise from Vision's tokenomics, namely the proof of storage and proof of identity uniqueness mechanisms.
 
-[fn:1] A dynamical system is a system in which a function describes the time dependence of a point in an ambient space. Examples include the mathematical models that describe the swinging of a clock pendulum, the flow of water in a pipe, the random motion of particles in the air, and the number of fish each springtime in a lake.
+[fn:1] From [[https://en.wikipedia.org/w/index.php?title=Dynamical_system&oldid=1096408559][*Wikipedia, The Free Encyclopedia.* "Dynamical system."]]: A dynamical system is a system in which a function describes the time dependence of a point in an ambient space. Examples include the mathematical models that describe the swinging of a clock pendulum, the flow of water in a pipe, the random motion of particles in the air, and the number of fish each springtime in a lake.
 
 
 This experiment is conducted in two parts, each measuring efficiency through different metrics of these two security mechanisms, respectively.
@@ -43,18 +44,18 @@ Several other model parameters are described more extensively in the source code
 In experimentation, we found that the single largest distinguishing factor for ensuring that users' data were being stored during contracts they took on was the *collateralization rate*.
 The *collateralization rate* is defined by the Vision proof of storage protocol, and sets a minimum percentage (\(\rho\)) of the market value (\(\mu\)) of a storage contract that a provider must stake to accept it.
 
-#+BEGIN_center
-#+attr_latex: :width 0.45\textwidth :center
+#+attr_latex: :placement [p]
+#+caption: \(\rho = 0\)
+#+name: fig:Figure 1
 [[./assets/fs/no_collateral.png]]
-#+attr_latex: :width 0.45\textwidth :center
+#+attr_latex: :float nil
+#+caption: \(\rho = 1\)
+#+name: fig:Figure 2
 [[./assets/fs/all_collateral.png]]
-#+END_center
-#+caption: Left, \(\rho = 0\), right \(\rho = 1\)
-#+attr_latex: :height 0.0001in
-[[./assets/Empty.png]]
 
-Displayed above where \(\rho = 0\), without any measures to ensure that users' files are intact, file storage providers are free to accept as many orders as they want, without paying for the underlying storage space. We consider this a form of theft, measured by, "storage stolen." Without these measures, virtually all storage space is stolen.
-Comparatively, where \(\rho = 1\) as displayed above, meaning 100% of the market value of a contract must be staked by the provider, storage stolen is virtually zero.
+
+Displayed above in [[fig:Figure 1][figure 1]] where \(\rho = 0\), without any measures to ensure that users' files are intact, file storage providers are free to accept as many orders as they want, without paying for the underlying storage space. We consider this a form of theft, measured by, "storage stolen." Without these measures, virtually all storage space is stolen.
+Comparatively, in [[fig:Figure 2][figure 2]] where \(\rho = 1\) as displayed above, meaning 100% of the market value of a contract must be staked by the provider, storage stolen is virtually zero.
 
 *** Resilience and Reactivity
 
@@ -90,7 +91,7 @@ The above figure displays the exponential nature of the number of tokens voted p
 
 *** Accuracy
 
-Experiments showed that accuracy increased over time, regardless of the *information* maintained by enforcers (\(I_{enforcer}\)) or jury members (\(I_{jury}\)).
+Experiments showed that accuracy increased over time, regardless of the *information* maintained by enforcers (\(I_{enforcer}\)) or jury members (\(I_{jury}\)). *Information* is how much more likely an enforcer or jury member will make a claim towards the actual legitimacy of the voting event. For example, if the voter is actually guilty, and \(I_{enforcer} = 0.5\) the enforcer is 50% more likely to claim guilty than with \(I_{enforcer} = 0\).
 
 [[file:assets/voting/accuracy.png]]
 
